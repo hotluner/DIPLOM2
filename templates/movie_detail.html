@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ movie.title }} - MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="movie-poster d-flex align-items-center justify-content-center" 
+                 style="background: linear-gradient(135deg, #1a1a3e, #2a2a5e); height: 450px; border-radius: 15px 15px 0 0;">
+                {% if movie.poster_url %}
+                    <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" 
+                         class="img-fluid h-100 w-100" style="object-fit: cover; border-radius: 15px 15px 0 0;">
+                {% else %}
+                    <i class="bi bi-film" style="font-size: 6rem; color: #6c63ff;"></i>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="text-white">{{ movie.title }}</h4>
+                        <p class="movie-year">{{ movie.year }}</p>
+                    </div>
+                    {% if movie.imdb_rating %}
+                        <div class="text-end">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> {{ movie.imdb_rating }}
+                            </span>
+                            <small class="text-secondary d-block">IMDb</small>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-3">
+                    {% for genre in movie.genres %}
+                        <span class="genre-tag">{{ genre }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card p-4 mb-4">
+            <h4 class="text-white">
+                <i class="bi bi-info-circle" style="color: #6c63ff;"></i> 
+                О фильме
+            </h4>
+            <p class="text-secondary mt-3" style="line-height: 1.8;">
+                {{ movie.description or 'Описание отсутствует' }}
+            </p>
+        </div>
+
+        <div class="card p-4 mb-4">
+            <h4 class="text-white">
+                <i class="bi bi-people" style="color: #6c63ff;"></i> 
+                Актёры
+            </h4>
+            <div class="mt-3">
+                {% if movie.actors %}
+                    {% for actor in movie.actors %}
+                        <span class="badge bg-secondary me-2 p-2">{{ actor }}</span>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-secondary">Информация об актёрах отсутствует</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card p-4 mb-4">
+            <h4 class="text-white">
+                <i class="bi bi-camera-reels" style="color: #6c63ff;"></i> 
+                Режиссёры
+            </h4>
+            <div class="mt-3">
+                {% if movie.directors %}
+                    {% for director in movie.directors %}
+                        <span class="badge bg-secondary me-2 p-2">{{ director }}</span>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-secondary">Информация о режиссёрах отсутствует</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Ваша оценка -->
+        <div class="card p-4">
+            <h4 class="text-white">
+                <i class="bi bi-star" style="color: #ffd700;"></i> 
+                Ваша оценка
+            </h4>
+            <div class="mt-3">
+                {% if user_rating %}
+                    <div class="d-flex align-items-center">
+                        <span class="display-4 text-white me-3">{{ user_rating }}</span>
+                        <span class="text-secondary">из 10</span>
+                        <span class="ms-3 badge bg-success">
+                            <i class="bi bi-check-circle"></i> Оценено
+                        </span>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        Вы ещё не оценили этот фильм. 
+                        <a href="{{ url_for('rating') }}" class="alert-link">Оценить другие фильмы →</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Кнопка назад -->
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="javascript:history.back()" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left"></i> Назад
+        </a>
+        <a href="{{ url_for('recommendations') }}" class="btn btn-primary ms-2">
+            <i class="bi bi-lightbulb"></i> К рекомендациям
+        </a>
+    </div>
+</div>
+{% endblock %}

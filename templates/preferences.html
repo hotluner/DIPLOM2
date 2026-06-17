@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Предпочтения - MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="section-title">Ваши предпочтения</h1>
+        <p class="text-secondary mb-4">
+            Выберите жанры, актёров и режиссёров, которые вам нравятся. 
+            Это поможет нам подобрать идеальные фильмы.
+        </p>
+    </div>
+    
+    <div class="col-12">
+        <form method="POST" action="{{ url_for('preferences') }}">
+            <!-- Жанры -->
+            <div class="card p-4 mb-4">
+                <h4 class="text-white mb-3">
+                    <i class="bi bi-tags" style="color: #6c63ff;"></i> 
+                    Любимые жанры
+                </h4>
+                <p class="text-secondary small">Выберите от 1 до 5 жанров</p>
+                <div class="row g-3">
+                    {% for genre in genres %}
+                    <div class="col-md-3 col-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   name="genres" value="{{ genre }}" 
+                                   id="genre_{{ loop.index }}"
+                                   {% if user.preferences and genre in user.preferences.get('genres', []) %}checked{% endif %}>
+                            <label class="form-check-label" for="genre_{{ loop.index }}">
+                                {{ genre }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Актёры -->
+            <div class="card p-4 mb-4">
+                <h4 class="text-white mb-3">
+                    <i class="bi bi-people" style="color: #6c63ff;"></i> 
+                    Любимые актёры
+                </h4>
+                <p class="text-secondary small">Выберите до 3 актёров</p>
+                <div class="row g-3">
+                    {% for actor in actors %}
+                    <div class="col-md-4 col-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   name="actors" value="{{ actor }}" 
+                                   id="actor_{{ loop.index }}"
+                                   {% if user.preferences and actor in user.preferences.get('actors', []) %}checked{% endif %}>
+                            <label class="form-check-label" for="actor_{{ loop.index }}">
+                                {{ actor }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Режиссёры -->
+            <div class="card p-4 mb-4">
+                <h4 class="text-white mb-3">
+                    <i class="bi bi-camera-reels" style="color: #6c63ff;"></i> 
+                    Любимые режиссёры
+                </h4>
+                <p class="text-secondary small">Выберите до 3 режиссёров</p>
+                <div class="row g-3">
+                    {% for director in directors %}
+                    <div class="col-md-4 col-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   name="directors" value="{{ director }}" 
+                                   id="director_{{ loop.index }}"
+                                   {% if user.preferences and director in user.preferences.get('directors', []) %}checked{% endif %}>
+                            <label class="form-check-label" for="director_{{ loop.index }}">
+                                {{ director }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Сохранить и продолжить
+                </button>
+                <a href="{{ url_for('rating') }}" class="text-secondary">
+                    Пропустить этот шаг →
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

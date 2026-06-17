@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Админ-панель - MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="section-title">
+            <i class="bi bi-shield-lock" style="color: #dc3545;"></i> 
+            Административная панель
+        </h1>
+        <p class="text-secondary mb-4">Управление пользователями и их рекомендациями</p>
+    </div>
+
+    <!-- Статистика -->
+    <div class="col-12 mb-4">
+        <div class="row g-3">
+            <div class="col-md-3 col-6">
+                <div class="card p-3 text-center">
+                    <i class="bi bi-people" style="font-size: 2rem; color: #6c63ff;"></i>
+                    <h3 class="text-white mt-2">{{ users|length }}</h3>
+                    <span class="text-secondary">Всего пользователей</span>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card p-3 text-center">
+                    <i class="bi bi-check-circle" style="font-size: 2rem; color: #28a745;"></i>
+                    <h3 class="text-white mt-2">
+                        {% set rated_users = users|selectattr('ratings', 'defined')|list|selectattr('ratings', 'ne', {})|list %}
+                        {{ rated_users|length }}
+                    </h3>
+                    <span class="text-secondary">Оценили фильмы</span>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card p-3 text-center">
+                    <i class="bi bi-lightbulb" style="font-size: 2rem; color: #ffc107;"></i>
+                    <h3 class="text-white mt-2">
+                        {% set rec_users = users|selectattr('recommendations', 'defined')|list|selectattr('recommendations', 'ne', {})|list %}
+                        {{ rec_users|length }}
+                    </h3>
+                    <span class="text-secondary">Получили рекомендации</span>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card p-3 text-center">
+                    <i class="bi bi-clock" style="font-size: 2rem; color: #17a2b8;"></i>
+                    <h3 class="text-white mt-2">
+                        {% set total_ratings = 0 %}
+                        {% for user in users %}
+                            {% set total_ratings = total_ratings + user.get_rating_count() %}
+                        {% endfor %}
+                        {{ total_ratings }}
+                    </h3>
+                    <span class="text-secondary">Всего оценок</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица пользователей -->
+    <div class="col-12">
+        <div class="card p-3">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Session ID</th>
+                            <th>Создан</th>
+                            <th>Обновлён</th>
+                            <th>Оценок</th>
+                            <th>Предпочтения</th>
+                            <th>Рекомендации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.user_id }}</td>
+                            <td>
+                                <code class="text-light" style="font-size: 0.75rem;">
+                                    {{ user.session_id[:8] if user.session_id else '-' }}...
+                                </code>
+                            </td>
+                            <td>
+                                <small class="text-secondary">
+                                    {{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '-' }}
+                                </small>
+                            </td>
+                            <td>
+                                <small class="text-secondary">
+                                    {{ user.updated_at.strftime('%d.%m.%Y %H:%M') if user.updated_at else '-' }}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge {% if user.get_rating_count() >= 10 %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ user.get_rating_count() }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if user.preferences and user.preferences.get('genres') %}
+                                    <span class="badge bg-info">
+                                        {{ user.preferences.get('genres', [])|length }} жанров
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.recommendations and user.recommendations.get('items') %}
+                                    <span class="badge bg-success">
+                                        {{ user.recommendations.get('total_count', 0) }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-danger" onclick="deleteUser({{ user.user_id }})" title="Удалить пользователя">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="deleteRecommendations({{ user.user_id }})" title="Очистить рекомендации">
+                                        <i class="bi bi-eraser"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Подтверждение действия</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary" id="confirmMessage">Вы уверены, что хотите выполнить это действие?</p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmButton">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let actionToConfirm = null;
+let targetId = null;
+
+function deleteUser(userId) {
+    actionToConfirm = 'deleteUser';
+    targetId = userId;
+    document.getElementById('confirmMessage').textContent = 
+        'Вы уверены, что хотите удалить пользователя #' + userId + '? Это действие необратимо.';
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    modal.show();
+}
+
+function deleteRecommendations(userId) {
+    actionToConfirm = 'deleteRecommendations';
+    targetId = userId;
+    document.getElementById('confirmMessage').textContent = 
+        'Вы уверены, что хотите удалить рекомендации пользователя #' + userId + '?';
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    modal.show();
+}
+
+document.getElementById('confirmButton').addEventListener('click', function() {
+    if (actionToConfirm === 'deleteUser') {
+        fetch('/admin/delete_user/' + targetId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка при удалении пользователя');
+            }
+        })
+        .catch(error => {
+            alert('Произошла ошибка: ' + error);
+        });
+    } else if (actionToConfirm === 'deleteRecommendations') {
+        fetch('/admin/delete_recommendations/' + targetId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка при удалении рекомендаций');
+            }
+        })
+        .catch(error => {
+            alert('Произошла ошибка: ' + error);
+        });
+    }
+});
+</script>
+{% endblock %}

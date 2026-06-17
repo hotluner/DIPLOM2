@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация - MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="col-md-6 col-lg-5">
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <i class="bi bi-film" style="font-size: 4rem; color: #6c63ff;"></i>
+                <h2 class="mt-3 text-white">Создать аккаунт</h2>
+                <p class="text-secondary">Начните свой путь к идеальному фильму</p>
+            </div>
+            
+            <!-- Flash сообщения -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="mb-3">
+                    <label for="username" class="form-label text-light">
+                        <i class="bi bi-person"></i> Имя пользователя
+                    </label>
+                    <input type="text" class="form-control" id="username" name="username" 
+                           placeholder="Придумайте имя (мин. 3 символа)" required autofocus>
+                    <div class="form-text text-secondary">
+                        Только латиница, цифры и _
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="email" class="form-label text-light">
+                        <i class="bi bi-envelope"></i> Email (опционально)
+                    </label>
+                    <input type="email" class="form-control" id="email" name="email" 
+                           placeholder="Введите email">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="password" class="form-label text-light">
+                        <i class="bi bi-lock"></i> Пароль
+                    </label>
+                    <input type="password" class="form-control" id="password" name="password" 
+                           placeholder="Минимум 6 символов" required>
+                    <div class="form-text text-secondary">
+                        Используйте надёжный пароль
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="password_confirm" class="form-label text-light">
+                        <i class="bi bi-lock-fill"></i> Подтверждение пароля
+                    </label>
+                    <input type="password" class="form-control" id="password_confirm" name="password_confirm" 
+                           placeholder="Повторите пароль" required>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="agree" required>
+                        <label class="form-check-label" for="agree">
+                            Я согласен с условиями использования сервиса
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-rocket-takeoff"></i> Зарегистрироваться
+                </button>
+            </form>
+            
+            <div class="mt-3 text-center">
+                <p class="text-secondary">
+                    Уже есть аккаунт? <a href="{{ url_for('login') }}" class="text-primary">Войти</a>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Преимущества -->
+        <div class="row mt-4 g-3">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="bi bi-robot" style="font-size: 2rem; color: #6c63ff;"></i>
+                    <p class="mt-2 text-secondary small">Умный алгоритм</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="bi bi-clock" style="font-size: 2rem; color: #6c63ff;"></i>
+                    <p class="mt-2 text-secondary small">Быстрый старт</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="bi bi-person-heart" style="font-size: 2rem; color: #6c63ff;"></i>
+                    <p class="mt-2 text-secondary small">Персонализация</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

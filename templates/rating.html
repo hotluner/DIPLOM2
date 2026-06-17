@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+
+{% block title %}Оценка фильмов - MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rating-card {
+        max-width: 500px;
+        margin: 0 auto;
+        position: relative;
+        min-height: 500px;
+        transition: all 0.3s ease;
+    }
+    
+    .rating-card .movie-poster-large {
+        height: 350px;
+        object-fit: cover;
+        border-radius: 15px 15px 0 0;
+        background: linear-gradient(135deg, #1a1a3e, #2a2a5e);
+    }
+    
+    .rating-card .card-body {
+        padding: 2rem;
+    }
+    
+    .rating-container {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 5px;
+        margin: 20px 0;
+    }
+    
+    .rating-container input {
+        display: none;
+    }
+    
+    .rating-container label {
+        font-size: 2.5rem;
+        color: #4a4a5a;
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 0 3px;
+    }
+    
+    .rating-container label:hover,
+    .rating-container label:hover ~ label,
+    .rating-container input:checked ~ label {
+        color: #ffd700;
+        transform: scale(1.15);
+    }
+    
+    .rating-container input:checked ~ label {
+        color: #ffd700;
+    }
+    
+    .rating-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #ffd700;
+        margin-left: 15px;
+        min-width: 40px;
+        display: inline-block;
+    }
+    
+    .progress-container {
+        max-width: 500px;
+        margin: 0 auto 30px auto;
+    }
+    
+    .progress-text {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .btn-dont-know {
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        color: #ffc107;
+    }
+    
+    .btn-dont-know:hover {
+        background: rgba(255, 193, 7, 0.2);
+        border-color: rgba(255, 193, 7, 0.5);
+        color: #ffc107;
+    }
+    
+    .movie-info-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 15px 0;
+    }
+    
+    .swipe-hint {
+        text-align: center;
+        color: #666688;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+    
+    .swipe-hint kbd {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ccc;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 0.8rem;
+    }
+    
+    .swipe-hint i {
+        margin: 0 5px;
+    }
+    
+    .complete-card {
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+    
+    .complete-card i {
+        font-size: 5rem;
+    }
+    
+    .complete-card .btn {
+        margin-top: 20px;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .rating-card {
+        animation: slideIn 0.4s ease;
+    }
+    
+    @media (max-width: 576px) {
+        .rating-card .movie-poster-large {
+            height: 250px;
+        }
+        
+        .rating-container label {
+            font-size: 2rem;
+        }
+        
+        .rating-value {
+            font-size: 2rem;
+        }
+    }
+    
+    .rating-card.swiping-right {
+        animation: swipeRight 0.3s ease forwards;
+    }
+    
+    .rating-card.swiping-left {
+        animation: swipeLeft 0.3s ease forwards;
+    }
+    
+    @keyframes swipeRight {
+        to {
+            transform: translateX(200px) rotate(15deg);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes swipeLeft {
+        to {
+            transform: translateX(-200px) rotate(-15deg);
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8 col-xl-7">
+        
+        <!-- Прогресс -->
+        <div class="progress-container">
+            <div class="progress-text">
+                <span class="text-white">
+                    <i class="bi bi-star-fill" style="color: #ffd700;"></i> 
+                    {{ rated_count }}/{{ min_ratings }} оценено
+                </span>
+                <span class="text-secondary">
+                    {% if rated_count >= min_ratings %}
+                        <span class="text-success">✅ Готово!</span>
+                    {% else %}
+                        Осталось {{ min_ratings - rated_count }}
+                        {% if skipped_count > 0 %}
+                            <span class="text-secondary ms-2">
+                                (пропущено: {{ skipped_count }})
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="progress" style="height: 12px; background: rgba(255,255,255,0.1);">
+                {% if rated_count >= min_ratings %}
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: 100%; transition: width 0.5s ease;" 
+                         aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                {% else %}
+                    {% set progress = (rated_count / min_ratings * 100) %}
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: {{ progress }}%; transition: width 0.5s ease;" 
+                         aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Карточка фильма для оценки -->
+        {% if movie_to_rate %}
+        <div class="rating-card" id="ratingCard">
+            <form method="POST" action="{{ url_for('rating') }}" id="ratingForm">
+                <div class="card">
+                    <div class="movie-poster-large d-flex align-items-center justify-content-center" 
+                         style="background: linear-gradient(135deg, #1a1a3e, #2a2a5e);">
+                        {% if movie_to_rate.poster_url %}
+                            <img src="{{ movie_to_rate.poster_url }}" alt="{{ movie_to_rate.title }}" 
+                                 class="img-fluid h-100 w-100" style="object-fit: cover;">
+                        {% else %}
+                            <i class="bi bi-film" style="font-size: 5rem; color: #6c63ff;"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h3 class="text-white mb-1">{{ movie_to_rate.title }}</h3>
+                                <span class="movie-year">{{ movie_to_rate.year }}</span>
+                            </div>
+                            {% if movie_to_rate.imdb_rating %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-star-fill"></i> {{ movie_to_rate.imdb_rating }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="movie-info-tags">
+                            {% for genre in movie_to_rate.genres %}
+                                <span class="genre-tag">{{ genre }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if movie_to_rate.actors %}
+                            <div class="mb-2">
+                                <small class="text-secondary">
+                                    <i class="bi bi-people"></i> 
+                                    {{ movie_to_rate.actors[:3]|join(', ') }}
+                                    {% if movie_to_rate.actors|length > 3 %}
+                                        и ещё {{ movie_to_rate.actors|length - 3 }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        {% endif %}
+                        
+                        {% if movie_to_rate.directors %}
+                            <div class="mb-3">
+                                <small class="text-secondary">
+                                    <i class="bi bi-camera-reels"></i> 
+                                    {{ movie_to_rate.directors|join(', ') }}
+                                </small>
+                            </div>
+                        {% endif %}
+                        
+                        <hr class="border-secondary">
+                        
+                        <!-- Система оценки -->
+                        <div class="text-center">
+                            <p class="text-secondary mb-2">Как оцените этот фильм?</p>
+                            <div class="rating-container" data-movie-id="{{ movie_to_rate.movie_id }}">
+                                {% for i in range(10, 0, -1) %}
+                                    <input type="radio" name="rating_{{ movie_to_rate.movie_id }}" 
+                                           value="{{ i }}" id="star_{{ movie_to_rate.movie_id }}_{{ i }}">
+                                    <label for="star_{{ movie_to_rate.movie_id }}_{{ i }}" 
+                                           class="bi bi-star-fill" 
+                                           title="{{ i }}"></label>
+                                {% endfor %}
+                                <span class="rating-value" id="rating_display_{{ movie_to_rate.movie_id }}">0</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <span class="text-secondary small">1 - Ужасно</span>
+                                <span class="text-secondary small">5 - Нормально</span>
+                                <span class="text-secondary small">10 - Шедевр!</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Кнопки управления -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="button" class="btn btn-outline-secondary flex-grow-1" onclick="skipMovie()">
+                                <i class="bi bi-skip-forward"></i> Пропустить
+                            </button>
+                            <button type="button" class="btn btn-dont-know flex-grow-1" onclick="dontKnowMovie()">
+                                <i class="bi bi-eye-slash"></i> Не знаю
+                            </button>
+                            <button type="submit" class="btn btn-primary flex-grow-1" id="submitRating" disabled>
+                                <i class="bi bi-check-circle"></i> Оценить
+                            </button>
+                        </div>
+                        
+                        <!-- Подсказки по клавишам -->
+                        <div class="swipe-hint mt-3">
+                            <small class="text-secondary">
+                                <i class="bi bi-keyboard"></i> 
+                                Горячие клавиши: 
+                                <kbd>1</kbd>-<kbd>9</kbd>, <kbd>0</kbd> (10) - оценка, 
+                                <kbd>Enter</kbd> - подтвердить, 
+                                <kbd>Space</kbd> или <kbd>S</kbd> - пропустить,
+                                <kbd>D</kbd> - не знаю
+                            </small>
+                        </div>
+                        
+                        <input type="hidden" name="movie_id" value="{{ movie_to_rate.movie_id }}">
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% else %}
+            <!-- Все фильмы просмотрены -->
+            <div class="complete-card card">
+                {% if rated_count >= min_ratings %}
+                    <i class="bi bi-check-circle text-success"></i>
+                {% else %}
+                    <i class="bi bi-emoji-frown text-warning"></i>
+                {% endif %}
+                <h3 class="text-white mt-3">
+                    {% if rated_count >= min_ratings %}
+                        🎉 Отлично!
+                    {% else %}
+                        Фильмы закончились!
+                    {% endif %}
+                </h3>
+                <p class="text-secondary">
+                    {% if rated_count >= min_ratings %}
+                        Вы оценили {{ rated_count }} фильмов. Теперь мы можем подобрать для вас идеальные рекомендации!
+                    {% else %}
+                        Вы просмотрели все доступные фильмы ({{ total_movies }} шт.), но оценили только {{ rated_count }}.
+                        {% if skipped_count > 0 %}
+                            <br>Вы пропустили {{ skipped_count }} фильмов.
+                        {% endif %}
+                        <br><br>Попробуйте вернуться и оценить некоторые из них.
+                    {% endif %}
+                </p>
+                <div class="d-flex gap-2 justify-content-center">
+                    {% if rated_count >= min_ratings %}
+                        <a href="{{ url_for('recommendations') }}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-lightbulb"></i> Получить рекомендации
+                        </a>
+                    {% else %}
+                        <button class="btn btn-primary" onclick="location.reload()">
+                            <i class="bi bi-arrow-repeat"></i> Обновить
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-light">
+                            <i class="bi bi-house"></i> На главную
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('.rating-container');
+    if (!container) return;
+    
+    const inputs = container.querySelectorAll('input[type="radio"]');
+    const display = container.querySelector('.rating-value');
+    const submitBtn = document.getElementById('submitRating');
+    const form = document.getElementById('ratingForm');
+    const card = document.getElementById('ratingCard');
+    
+    let selectedRating = 0;
+    
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            selectedRating = parseInt(this.value);
+            display.textContent = selectedRating;
+            submitBtn.disabled = false;
+            
+            const labels = container.querySelectorAll('label');
+            labels.forEach(label => {
+                const forId = label.getAttribute('for');
+                const radio = document.getElementById(forId);
+                if (radio && radio.checked) {
+                    label.style.color = '#ffd700';
+                } else if (radio) {
+                    let isChecked = false;
+                    const siblings = container.querySelectorAll('input[type="radio"]');
+                    for (const sibling of siblings) {
+                        if (sibling.checked && parseInt(sibling.value) >= parseInt(radio.value)) {
+                            isChecked = true;
+                            break;
+                        }
+                    }
+                    label.style.color = isChecked ? '#ffd700' : '#4a4a5a';
+                }
+            });
+            
+            if (navigator.vibrate) {
+                navigator.vibrate(10);
+            }
+        });
+    });
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (selectedRating > 0) {
+            card.classList.add('swiping-right');
+            setTimeout(() => form.submit(), 300);
+        }
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key >= '1' && e.key <= '9') {
+            const num = parseInt(e.key);
+            const input = container.querySelector('input[value="' + num + '"]');
+            if (input) {
+                input.checked = true;
+                input.dispatchEvent(new Event('change'));
+            }
+        } else if (e.key === '0') {
+            const input = container.querySelector('input[value="10"]');
+            if (input) {
+                input.checked = true;
+                input.dispatchEvent(new Event('change'));
+            }
+        } else if (e.key === 'Enter' && !submitBtn.disabled) {
+            form.dispatchEvent(new Event('submit'));
+        } else if (e.key === ' ' || e.key === 's' || e.key === 'S') {
+            e.preventDefault();
+            skipMovie();
+        } else if (e.key === 'd' || e.key === 'D') {
+            e.preventDefault();
+            dontKnowMovie();
+        }
+    });
+});
+
+function skipMovie() {
+    const card = document.getElementById('ratingCard');
+    const form = document.getElementById('ratingForm');
+    const movieId = document.querySelector('input[name="movie_id"]').value;
+    
+    card.classList.add('swiping-left');
+    setTimeout(() => {
+        const skipInput = document.createElement('input');
+        skipInput.type = 'hidden';
+        skipInput.name = 'skip_' + movieId;
+        skipInput.value = '1';
+        form.appendChild(skipInput);
+        form.submit();
+    }, 300);
+}
+
+function dontKnowMovie() {
+    const card = document.getElementById('ratingCard');
+    const form = document.getElementById('ratingForm');
+    const movieId = document.querySelector('input[name="movie_id"]').value;
+    
+    card.classList.add('swiping-left');
+    setTimeout(() => {
+        const skipInput = document.createElement('input');
+        skipInput.type = 'hidden';
+        skipInput.name = 'skip_' + movieId;
+        skipInput.value = '1';
+        form.appendChild(skipInput);
+        form.submit();
+    }, 300);
+}
+</script>
+{% endblock %}
