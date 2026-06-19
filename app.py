@@ -137,15 +137,32 @@ def preferences():
         'Роберт Эггерс', 'Дэмьен Шазелл']
     
     if request.method == 'POST':
+        # Получаем выбранные жанры
+        selected_genres = request.form.getlist('genres')
+        
+        # Отладочный вывод
+        print(f"Выбранные жанры: {selected_genres}")
+        print(f"Все данные формы: {request.form}")
+
+        # Проверяем, выбран ли хотя бы один жанр
+        if not selected_genres:
+            flash('Пожалуйста, выберите хотя бы один жанр!', 'danger')
+            return render_template('preferences.html', 
+                                 user=user,
+                                 genres=available_genres,
+                                 actors=available_actors,
+                                 directors=available_directors)
+        
         # Сохраняем предпочтения
         user.preferences = {
-            'genres': request.form.getlist('genres'),
+            'genres': selected_genres,
             'actors': request.form.getlist('actors'),
             'directors': request.form.getlist('directors'),
-            'selected_at': None
+            'selected_at': datetime.now().isoformat()
         }
         db.update_user(user)
         
+        flash('Предпочтения сохранены! Теперь оцените фильмы.', 'success')
         return redirect(url_for('rating'))
     
     return render_template('preferences.html', 
@@ -165,6 +182,11 @@ def rating():
         session.clear()
         return redirect(url_for('login'))
     
+    # Проверяем, выбраны ли предпочтения
+    if not user.preferences or not user.preferences.get('genres'):
+        flash('Сначала выберите свои предпочтения!', 'warning')
+        return redirect(url_for('preferences'))
+
     MIN_RATINGS = 10
     
     # Инициализируем список пропущенных в сессии
@@ -262,10 +284,16 @@ def recommendations():
         session.clear()
         return redirect(url_for('login'))
     
-    # Если пользователь ещё не набрал 10 оценок
+    # Проверяем, выбраны ли предпочтения
+    if not user.preferences or not user.preferences.get('genres'):
+        flash('Сначала выберите свои предпочтения!', 'warning')
+        return redirect(url_for('preferences'))
+
+    # Проверяем, достаточно ли оценок
     if not user.has_min_ratings(10):
+        flash('Оцените как минимум 10 фильмов для получения рекомендаций!', 'warning')
         return redirect(url_for('rating'))
-    
+
     # Генерируем рекомендации
     recs = recommender.get_recommendations(user, top_n=10)
     

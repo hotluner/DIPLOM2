@@ -6,26 +6,30 @@
 <div class="row">
     <div class="col-12">
         <h1 class="section-title">Ваши предпочтения</h1>
-        <p class="text-secondary mb-4">
-            Выберите жанры, актёров и режиссёров, которые вам нравятся. 
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> 
+            <strong>Это обязательный этап!</strong> Выберите жанры, актёров и режиссёров, которые вам нравятся. 
             Это поможет нам подобрать идеальные фильмы.
+        </div>
+        <p class="text-secondary mb-4">
+            <span class="text-danger">*</span> Обязательно выберите хотя бы один жанр.
         </p>
     </div>
     
     <div class="col-12">
-        <form method="POST" action="{{ url_for('preferences') }}">
-            <!-- Жанры -->
-            <div class="card p-4 mb-4">
+        <form method="POST" action="{{ url_for('preferences') }}" id="preferencesForm">
+            <!-- Жанры (обязательные) -->
+            <div class="card p-4 mb-4" id="genresCard">
                 <h4 class="text-white mb-3">
                     <i class="bi bi-tags" style="color: #6c63ff;"></i> 
-                    Любимые жанры
+                    Любимые жанры <span class="text-danger">*</span>
                 </h4>
                 <p class="text-secondary small">Выберите от 1 до 5 жанров</p>
                 <div class="row g-3">
                     {% for genre in genres %}
                     <div class="col-md-3 col-6">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" 
+                            <input class="form-check-input genre-checkbox" type="checkbox" 
                                    name="genres" value="{{ genre }}" 
                                    id="genre_{{ loop.index }}"
                                    {% if user.preferences and genre in user.preferences.get('genres', []) %}checked{% endif %}>
@@ -36,15 +40,20 @@
                     </div>
                     {% endfor %}
                 </div>
+                <div class="mt-2">
+                    <small class="text-danger" id="genreError" style="display: none;">
+                        <i class="bi bi-exclamation-circle"></i> Выберите хотя бы один жанр!
+                    </small>
+                </div>
             </div>
 
-            <!-- Актёры -->
+            <!-- Актёры (опциональные) -->
             <div class="card p-4 mb-4">
                 <h4 class="text-white mb-3">
                     <i class="bi bi-people" style="color: #6c63ff;"></i> 
                     Любимые актёры
                 </h4>
-                <p class="text-secondary small">Выберите до 3 актёров</p>
+                <p class="text-secondary small">Выберите до 3 актёров (опционально)</p>
                 <div class="row g-3">
                     {% for actor in actors %}
                     <div class="col-md-4 col-6">
@@ -62,13 +71,13 @@
                 </div>
             </div>
 
-            <!-- Режиссёры -->
+            <!-- Режиссёры (опциональные) -->
             <div class="card p-4 mb-4">
                 <h4 class="text-white mb-3">
                     <i class="bi bi-camera-reels" style="color: #6c63ff;"></i> 
                     Любимые режиссёры
                 </h4>
-                <p class="text-secondary small">Выберите до 3 режиссёров</p>
+                <p class="text-secondary small">Выберите до 3 режиссёров (опционально)</p>
                 <div class="row g-3">
                     {% for director in directors %}
                     <div class="col-md-4 col-6">
@@ -87,14 +96,72 @@
             </div>
 
             <div class="d-flex justify-content-between align-items-center">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
                     <i class="bi bi-save"></i> Сохранить и продолжить
                 </button>
-                <a href="{{ url_for('rating') }}" class="text-secondary">
-                    Пропустить этот шаг →
-                </a>
+                <small class="text-secondary">
+                    <i class="bi bi-asterisk text-danger"></i> Жанры обязательны для выбора
+                </small>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('preferencesForm');
+    const genreCheckboxes = document.querySelectorAll('.genre-checkbox');
+    const genreError = document.getElementById('genreError');
+    const submitBtn = document.getElementById('submitBtn');
+    const genresCard = document.getElementById('genresCard');
+    
+    // Функция проверки выбора жанров
+    function checkGenresSelected() {
+        let checked = false;
+        genreCheckboxes.forEach(function(cb) {
+            if (cb.checked) checked = true;
+        });
+        return checked;
+    }
+    
+    // Обработка отправки формы
+    form.addEventListener('submit', function(e) {
+        if (!checkGenresSelected()) {
+            e.preventDefault();
+            genreError.style.display = 'block';
+            genresCard.style.border = '2px solid #dc3545';
+            genresCard.style.boxShadow = '0 0 20px rgba(220, 53, 69, 0.2)';
+            
+            // Прокручиваем к ошибке
+            genreError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Убираем подсветку через 3 секунды
+            setTimeout(() => {
+                genresCard.style.border = '1px solid rgba(255,255,255,0.1)';
+                genresCard.style.boxShadow = 'none';
+            }, 3000);
+        }
+    });
+    
+    // Скрываем ошибку при выборе жанра
+    genreCheckboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            if (checkGenresSelected()) {
+                genreError.style.display = 'none';
+                genresCard.style.border = '1px solid rgba(255,255,255,0.1)';
+                genresCard.style.boxShadow = 'none';
+            }
+        });
+    });
+    
+    // Предотвращаем отправку формы при нажатии Enter в чекбоксах
+    document.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+        cb.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

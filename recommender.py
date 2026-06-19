@@ -66,24 +66,28 @@ class MovieRecommender:
         """Вычисляет score для одного фильма"""
         score = 0.0
         
-        # 1. Совпадение жанров (вес 0.35)
-        if user.preferences and 'genres' in user.preferences:
+        # Проверяем, есть ли предпочтения у пользователя
+        if not user.preferences:
+            return 0.0
+        
+        # 1. Совпадение жанров (вес 0.35) - ОБЯЗАТЕЛЬНО
+        if user.preferences and 'genres' in user.preferences and user.preferences['genres']:
             genre_score = self._calculate_jaccard_similarity(
                 movie['genres'],
                 user.preferences.get('genres', [])
             )
             score += genre_score * self.weights['genre']
         
-        # 2. Совпадение актёров (вес 0.25)
-        if user.preferences and 'actors' in user.preferences:
+        # 2. Совпадение актёров (вес 0.25) - если выбраны
+        if user.preferences and 'actors' in user.preferences and user.preferences['actors']:
             actor_score = self._calculate_jaccard_similarity(
                 movie['actors'],
                 user.preferences.get('actors', [])
             )
             score += actor_score * self.weights['actor']
         
-        # 3. Совпадение режиссёра (вес 0.15)
-        if user.preferences and 'directors' in user.preferences:
+        # 3. Совпадение режиссёра (вес 0.15) - если выбраны
+        if user.preferences and 'directors' in user.preferences and user.preferences['directors']:
             director_score = self._calculate_jaccard_similarity(
                 movie['directors'],
                 user.preferences.get('directors', [])

@@ -241,7 +241,9 @@ class Database:
                 data['last_recommended_at'],
                 user.user_id
             ))
-    
+            print(f"✅ Обновлён пользователь {user.user_id}")
+            print(f"   Предпочтения: {data['preferences']}")
+
     def delete_user(self, user_id: int):
         """Удаляет пользователя"""
         with self.get_connection() as conn:
