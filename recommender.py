@@ -16,14 +16,13 @@ class MovieRecommender:
             'rating': 0.25
         }
     
-    def get_recommendations(self, user, top_n: int = 10) -> List[Dict]:
+    def get_recommendations(self, user, top_n: int = 25) -> List[Dict]:
         """
         Генерирует персонализированные рекомендации
         
         Args:
             user: объект пользователя
-            top_n: количество рекомендаций
-        
+            top_n: количество рекомендаций (увеличиваем до 25)
         Returns:
             Список фильмов с оценками
         """
@@ -63,46 +62,93 @@ class MovieRecommender:
         return recommendations
     
     def _calculate_score(self, movie: Dict, user) -> float:
-        """Вычисляет score для одного фильма"""
+        """Вычисляет score для одного фильма с учётом всех критериев"""
         score = 0.0
         
         # Проверяем, есть ли предпочтения у пользователя
         if not user.preferences:
             return 0.0
         
-        # 1. Совпадение жанров (вес 0.35) - ОБЯЗАТЕЛЬНО
-        if user.preferences and 'genres' in user.preferences and user.preferences['genres']:
+        prefs = user.preferences
+        
+        # 1. Совпадение жанров (вес 0.30)
+        if prefs.get('genres'):
             genre_score = self._calculate_jaccard_similarity(
                 movie['genres'],
-                user.preferences.get('genres', [])
+                prefs.get('genres', [])
             )
-            score += genre_score * self.weights['genre']
+            score += genre_score * 0.30
         
-        # 2. Совпадение актёров (вес 0.25) - если выбраны
-        if user.preferences and 'actors' in user.preferences and user.preferences['actors']:
+        # 2. Совпадение актёров (вес 0.20)
+        if prefs.get('actors'):
             actor_score = self._calculate_jaccard_similarity(
                 movie['actors'],
-                user.preferences.get('actors', [])
+                prefs.get('actors', [])
             )
-            score += actor_score * self.weights['actor']
+            score += actor_score * 0.20
         
-        # 3. Совпадение режиссёра (вес 0.15) - если выбраны
-        if user.preferences and 'directors' in user.preferences and user.preferences['directors']:
+        # 3. Совпадение режиссёра (вес 0.15)
+        if prefs.get('directors'):
             director_score = self._calculate_jaccard_similarity(
                 movie['directors'],
-                user.preferences.get('directors', [])
+                prefs.get('directors', [])
             )
-            score += director_score * self.weights['director']
+            score += director_score * 0.15
         
-        # 4. Учёт личных оценок пользователя (вес 0.25)
+        # 4. Совпадение года выпуска (вес 0.10)
+        year_score = self._calculate_year_score(
+            movie['year'],
+            prefs.get('year_from'),
+            prefs.get('year_to')
+        )
+        score += year_score * 0.10
+        
+        # 5. Учёт личных оценок пользователя (вес 0.25)
         if user.ratings:
-            # Находим похожие фильмы на основе жанров
             similar_movies = self._find_similar_movies(movie, user)
             if similar_movies:
                 rating_score = self._calculate_rating_score(similar_movies, user)
-                score += rating_score * self.weights['rating']
+                score += rating_score * 0.25
         
         return score
+    
+    def _calculate_year_score(self, movie_year: Optional[int], year_from: Optional[str], year_to: Optional[str]) -> float:
+        """Вычисляет оценку за соответствие году выпуска"""
+        if not movie_year:
+            return 0.0
+        
+        movie_year = int(movie_year)
+        
+        # Преобразуем строки в числа
+        try:
+            year_from = int(year_from) if year_from else None
+            year_to = int(year_to) if year_to else None
+        except (ValueError, TypeError):
+            return 0.0
+        
+        # Если оба года не указаны - полный балл
+        if not year_from and not year_to:
+            return 1.0
+        
+        # Проверяем попадание в диапазон
+        in_range = True
+        if year_from and movie_year < year_from:
+            in_range = False
+        if year_to and movie_year > year_to:
+            in_range = False
+        
+        if in_range:
+            # Чем ближе к центру диапазона, тем выше балл
+            if year_from and year_to:
+                center = (year_from + year_to) / 2
+                distance = abs(movie_year - center)
+                max_distance = (year_to - year_from) / 2
+                if max_distance > 0:
+                    return max(0.5, 1.0 - (distance / max_distance) * 0.5)
+            return 0.8  # Базовый балл, если просто в диапазоне
+        else:
+            return 0.0
+
     
     def _calculate_jaccard_similarity(self, list1: List, list2: List) -> float:
         """Вычисляет коэффициент Жаккара между двумя списками"""
@@ -173,17 +219,35 @@ class MovieRecommender:
         return popular[:limit]
     
     def _create_sample_movies(self, count: int = 30) -> List[Dict]:
-        """Создаёт тестовые фильмы для демонстрации"""
+        """Создаёт тестовые фильмы из TMDB или локальной базы"""
+    
         # Проверяем, сколько фильмов уже есть в БД
         existing_movies = self.db.get_all_movies()
         if existing_movies:
-            return existing_movies[:count]  
-    
-        # Используем данные из movies_data.py
-        movies_to_add = SAMPLE_MOVIES[:count]
-
+            return existing_movies[:count]
         
-        # Сохраняем в БД
+        # Пытаемся получить данные из TMDB
+        try:
+            from tmdb_service import tmdb_service
+            popular_movies = tmdb_service.get_popular_movies(page=1)
+            
+            movies_to_add = []
+            for movie_data in popular_movies[:count]:
+                # Получаем детальную информацию
+                details = tmdb_service.get_movie_details(movie_data['tmdb_id'])
+                if details:
+                    self.db.add_movie(details)
+                    movies_to_add.append(details)
+            
+            if movies_to_add:
+                return movies_to_add
+        except Exception as e:
+            print(f"Ошибка при загрузке из TMDB: {e}")
+        
+        # Если TMDB не доступен, используем локальные данные
+        from movies_data import SAMPLE_MOVIES
+        movies_to_add = SAMPLE_MOVIES[:count]
+        
         for movie in movies_to_add:
             self.db.add_movie(movie)
         

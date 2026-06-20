@@ -1,21 +1,37 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from venv import logger
+
+from flask import Config, Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_session import Session
 import secrets
 from database import Database
 from recommender import MovieRecommender
 from models import User
+from tmdb_service import tmdb_service
+from config import config
 import json
 from datetime import datetime
+import os
+import tmdbsimple as tmdb
+from movie_selector import MovieSelector
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = secrets.token_hex(16)
+
+# Загружаем конфигурацию
+env = os.getenv('FLASK_ENV', 'development')
+app.config.from_object(config[env])
+
+# Настройка сессии
+app.config['SECRET_KEY'] = Config.SECRET_KEY if hasattr(Config, 'SECRET_KEY') else secrets.token_hex(16)
 app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = './flask_session'
 app.config['SESSION_PERMANENT'] = False
 Session(app)
 
 # Инициализация БД и рекомендательной системы
 db = Database()
 recommender = MovieRecommender(db)
+
+movie_selector = MovieSelector()
 
 @app.route('/')
 def index():
@@ -105,7 +121,7 @@ def logout():
 
 @app.route('/preferences', methods=['GET', 'POST'])
 def preferences():
-    """Страница выбора предпочтений"""
+    """Страница выбора предпочтений (обязательный этап)"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
@@ -115,49 +131,58 @@ def preferences():
         return redirect(url_for('login'))
     
     # Список доступных жанров
-    available_genres = ['Боевик', 'Драма', 'Комедия', 'Фантастика', 'Ужасы', 
+    available_genres = [
+        'Боевик', 'Драма', 'Комедия', 'Фантастика', 'Ужасы', 
         'Триллер', 'Приключения', 'Криминал', 'Мелодрама', 
         'Документальный', 'Анимация', 'Семейный', 'Военный',
         'Детектив', 'Мистика', 'Фэнтези', 'Исторический', 
-        'Музыка', 'Нуар', 'Вестерн']
+        'Музыка', 'Нуар', 'Вестерн'
+    ]
     
-    # Список актёров и режиссёров (можно расширить)
-    available_actors = ['Леонардо ДиКаприо', 'Том Хэнкс', 'Морган Фриман', 
-        'Аль Пачино', 'Брэд Питт', 'Киану Ривз', 'Джонни Депп',
-        'Роберт Де Ниро', 'Мэтт Деймон', 'Кристиан Бэйл',
-        'Хоакин Феникс', 'Элайджа Вуд', 'Иэн Маккеллен',
-        'Вигго Мортенсен', 'Майкл Дж. Фокс', 'Арнольд Шварценеггер',
-        'Сигурни Уивер', 'Эми Адамс', 'Эмма Стоун', 'Райан Гослинг',
-        'Том Харди', 'Шарлиз Терон', 'Марлон Брандо', 'Джеймс Стюарт']
-    available_directors = ['Кристофер Нолан', 'Джеймс Кэмерон', 'Квентин Тарантино',
-        'Фрэнк Дарабонт', 'Стивен Спилберг', 'Питер Джексон',
-        'Ридли Скотт', 'Дэвид Финчер', 'Дени Вильнёв',
-        'Фрэнсис Форд Коппола', 'Роберт Земекис', 'Джордж Лукас',
-        'Хаяо Миядзаки', 'Макото Синкай', 'Пол Томас Андерсон',
-        'Роберт Эггерс', 'Дэмьен Шазелл']
+    # Список стран
+    available_countries = [
+        'США', 'Великобритания', 'Россия', 'Франция', 'Германия',
+        'Италия', 'Испания', 'Канада', 'Австралия', 'Япония',
+        'Китай', 'Южная Корея', 'Индия', 'Мексика', 'Бразилия'
+    ]
+    
+    # Годы для выбора (от 1950 до текущего)
+    current_year = datetime.now().year
+    available_years = list(range(current_year, 1949, -1))
     
     if request.method == 'POST':
         # Получаем выбранные жанры
         selected_genres = request.form.getlist('genres')
         
-        # Отладочный вывод
-        print(f"Выбранные жанры: {selected_genres}")
-        print(f"Все данные формы: {request.form}")
-
         # Проверяем, выбран ли хотя бы один жанр
         if not selected_genres:
             flash('Пожалуйста, выберите хотя бы один жанр!', 'danger')
             return render_template('preferences.html', 
                                  user=user,
                                  genres=available_genres,
-                                 actors=available_actors,
-                                 directors=available_directors)
+                                 countries=available_countries,
+                                 years=available_years)
+        
+        # Получаем выбранных актёров из скрытого поля
+        selected_actors = request.form.get('actors', '').split(',')
+        selected_actors = [a.strip() for a in selected_actors if a.strip()]
+        
+        # Получаем выбранных режиссёров из скрытого поля
+        selected_directors = request.form.get('directors', '').split(',')
+        selected_directors = [d.strip() for d in selected_directors if d.strip()]
+        
+        # Получаем год
+        year_from = request.form.get('year_from')
+        year_to = request.form.get('year_to')
         
         # Сохраняем предпочтения
         user.preferences = {
             'genres': selected_genres,
-            'actors': request.form.getlist('actors'),
-            'directors': request.form.getlist('directors'),
+            'actors': selected_actors,
+            'directors': selected_directors,
+            'countries': request.form.getlist('countries'),
+            'year_from': year_from if year_from else None,
+            'year_to': year_to if year_to else None,
             'selected_at': datetime.now().isoformat()
         }
         db.update_user(user)
@@ -168,12 +193,12 @@ def preferences():
     return render_template('preferences.html', 
                          user=user,
                          genres=available_genres,
-                         actors=available_actors,
-                         directors=available_directors)
+                         countries=available_countries,
+                         years=available_years)
 
 @app.route('/rating', methods=['GET', 'POST'])
 def rating():
-    """Страница оценки фильмов - по одному фильму за раз"""
+    """Страница оценки фильмов - по одному фильму за раз с умным подбором"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
@@ -186,7 +211,7 @@ def rating():
     if not user.preferences or not user.preferences.get('genres'):
         flash('Сначала выберите свои предпочтения!', 'warning')
         return redirect(url_for('preferences'))
-
+    
     MIN_RATINGS = 10
     
     # Инициализируем список пропущенных в сессии
@@ -196,21 +221,22 @@ def rating():
     # Получаем все фильмы
     all_movies = db.get_all_movies()
     
-    # Если фильмов нет или меньше 20, создаём больше
-    if len(all_movies) < 20:
-        recommender._create_sample_movies(30)
+    # Если фильмов меньше 50, создаём больше
+    if len(all_movies) < 50:
+        recommender._create_sample_movies(250)
         all_movies = db.get_all_movies()
     
-    # Исключаем уже оценённые и пропущенные (из сессии)
+    # Получаем ID оценённых и пропущенных фильмов
     rated_movie_ids = set(user.ratings.keys())
     skipped_movie_ids = set(session['skipped_movies'])
     
-    # Фильтруем: убираем оценённые и пропущенные
-    unrated_movies = [
-        m for m in all_movies 
-        if m['movie_id'] not in rated_movie_ids 
-        and m['movie_id'] not in skipped_movie_ids
-    ]
+    # Настраиваем MovieSelector
+    movie_selector.set_context(
+        user=user,
+        all_movies=all_movies,
+        rated_movies=rated_movie_ids,
+        skipped_movies=skipped_movie_ids
+    )
     
     rated_count = len(rated_movie_ids)
     
@@ -254,10 +280,13 @@ def rating():
         else:
             return redirect(url_for('rating'))
     
-    # GET запрос - показываем следующий фильм для оценки
-    next_movie = unrated_movies[0] if unrated_movies else None
+    # GET запрос - используем умный подбор
+    next_movie = movie_selector.get_next_movie()
     
-    # Если все фильмы просмотрены, но оценок меньше 10
+    # Получаем статистику
+    stats = movie_selector.get_movie_stats()
+    
+    # Если все фильмы просмотрены, но оценок меньше MIN_RATINGS
     if not next_movie and rated_count < MIN_RATINGS:
         # Сбрасываем пропущенные, чтобы показать их снова
         session['skipped_movies'] = []
@@ -271,7 +300,8 @@ def rating():
                          rated_count=rated_count,
                          min_ratings=MIN_RATINGS,
                          total_movies=len(all_movies),
-                         skipped_count=len(session.get('skipped_movies', [])))
+                         skipped_count=len(session.get('skipped_movies', [])),
+                         stats=stats)
 
 @app.route('/recommendations')
 def recommendations():
@@ -288,26 +318,51 @@ def recommendations():
     if not user.preferences or not user.preferences.get('genres'):
         flash('Сначала выберите свои предпочтения!', 'warning')
         return redirect(url_for('preferences'))
-
+    
     # Проверяем, достаточно ли оценок
     if not user.has_min_ratings(10):
         flash('Оцените как минимум 10 фильмов для получения рекомендаций!', 'warning')
         return redirect(url_for('rating'))
-
-    # Генерируем рекомендации
-    recs = recommender.get_recommendations(user, top_n=10)
     
-    # Сохраняем в БД
-    user.recommendations = {
-        'items': recs,
-        'generated_at': None,
-        'total_count': len(recs)
-    }
-    db.update_user(user)
+    # Проверяем, есть ли уже рекомендации и не устарели ли они
+    has_valid_recommendations = False
+    recommendations = []
+    
+    if user.recommendations and user.recommendations.get('items'):
+        # Проверяем, не устарели ли рекомендации (например, > 1 дня)
+        generated_at = user.recommendations.get('generated_at')
+        if generated_at:
+            try:
+                gen_time = datetime.fromisoformat(generated_at)
+                time_diff = datetime.now() - gen_time
+                if time_diff.days < 1:
+                    has_valid_recommendations = True
+                    recommendations = user.recommendations.get('items', [])
+            except (ValueError, TypeError):
+                pass
+        
+        # Если рекомендации есть, но устарели - генерируем новые
+        if not has_valid_recommendations and user.recommendations.get('items'):
+            flash('Рекомендации обновлены с учётом новых оценок!', 'info')
+    
+    # Если нет валидных рекомендаций - генерируем
+    if not has_valid_recommendations:
+        # Генерируем рекомендации
+        recs = recommender.get_recommendations(user, top_n=25)
+        
+        # Сохраняем в БД
+        user.recommendations = {
+            'items': recs,
+            'generated_at': datetime.now().isoformat(),
+            'total_count': len(recs)
+        }
+        db.update_user(user)
+        recommendations = recs
+        flash('Рекомендации сгенерированы!', 'success')
     
     return render_template('recommendations.html', 
                          user=user,
-                         recommendations=recs)
+                         recommendations=recommendations or user.recommendations.get('items', []))
 
 @app.route('/movie/<movie_id>')
 def movie_detail(movie_id):
@@ -370,7 +425,7 @@ def delete_user(user_id):
 
 @app.route('/admin/delete_recommendations/<int:user_id>', methods=['POST'])
 def delete_recommendations(user_id):
-    """Удаление рекомендаций пользователя"""
+    """Полное удаление рекомендаций и данных пользователя (только для админа)"""
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -379,11 +434,179 @@ def delete_recommendations(user_id):
         return jsonify({'error': 'Forbidden'}), 403
     
     user = db.get_user_by_id(user_id)
-    if user:
-        user.recommendations = {}
-        db.update_user(user)
-        return jsonify({'success': True})
-    return jsonify({'error': 'User not found'}), 404
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Полностью очищаем все данные пользователя
+    user.preferences = {}
+    user.ratings = {}
+    user.recommendations = {}
+    user.skipped = {}
+    
+    # Обновляем в базе данных
+    db.update_user(user)
+    
+    # Если это текущий пользователь - очищаем сессию
+    if user_id == session['user_id']:
+        # Очищаем все данные сессии
+        session.pop('skipped_movies', None)
+        session.pop('user_recommendations', None)
+        
+        # Обновляем пользователя в сессии
+        updated_user = db.get_user_by_id(user_id)
+        if updated_user:
+            session['user_id'] = updated_user.user_id
+            session['username'] = updated_user.username
+    
+    # Логируем действие
+    logger.info(f"🗑️ Полностью очищены данные пользователя {user.username or user_id}")
+    logger.info(f"   Предпочтения: {user.preferences}")
+    logger.info(f"   Оценки: {len(user.ratings)}")
+    logger.info(f"   Рекомендации: {user.recommendations}")
+    
+    return jsonify({
+        'success': True,
+        'message': 'Все данные пользователя удалены. Пользователь должен пройти все этапы заново.',
+        'user_id': user_id
+    })
+
+@app.route('/admin/update_movies')
+def admin_update_movies():
+    """Обновление базы данных фильмов из TMDB (только для админа)"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = db.get_user_by_id(session['user_id'])
+    if not user or not user.is_admin:
+        flash('Доступ запрещён', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        # Получаем популярные фильмы
+        popular_movies = tmdb_service.get_popular_movies(page=1)
+        
+        # Добавляем детали для каждого фильма
+        added_count = 0
+        for movie_data in popular_movies[:30]:  # Ограничиваем 30 фильмами
+            # Получаем детальную информацию
+            details = tmdb_service.get_movie_details(movie_data['tmdb_id'])
+            if details:
+                # Проверяем, есть ли фильм в БД
+                existing = db.get_movie(details['movie_id'])
+                if not existing:
+                    db.add_movie(details)
+                    added_count += 1
+        
+        flash(f'Добавлено {added_count} новых фильмов из TMDB!', 'success')
+    except Exception as e:
+        flash(f'Ошибка при обновлении фильмов: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/search_movies')
+def admin_search_movies():
+    """Поиск фильмов в TMDB (только для админа)"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = db.get_user_by_id(session['user_id'])
+    if not user or not user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({'error': 'Query required'}), 400
+    
+    results = tmdb_service.search_movies(query)
+    return jsonify(results)
+
+@app.route('/api/search_actors')
+def search_actors():
+    """Поиск актёров по запросу"""
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify([])
+    
+    try:
+        # Ищем актёров через TMDB
+        search = tmdb.Search()
+        response = search.person(query=query, language='ru-RU')
+        
+        actors = []
+        if 'results' in response:
+            for person in response['results'][:10]:
+                # Проверяем, что это актёр
+                if person.get('known_for_department') == 'Acting':
+                    actors.append({
+                        'id': person['id'],
+                        'name': person['name'],
+                        'profile_path': person.get('profile_path'),
+                        'popularity': person.get('popularity', 0)
+                    })
+        
+        return jsonify(actors)
+    except Exception as e:
+        print(f"Ошибка поиска актёров: {e}")
+        return jsonify([])
+
+@app.route('/api/search_directors')
+def search_directors():
+    """Поиск режиссёров по запросу"""
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify([])
+    
+    try:
+        # Ищем режиссёров через TMDB
+        search = tmdb.Search()
+        response = search.person(query=query, language='ru-RU')
+        
+        directors = []
+        if 'results' in response:
+            for person in response['results'][:10]:
+                # Проверяем, что это режиссёр
+                if person.get('known_for_department') == 'Directing':
+                    directors.append({
+                        'id': person['id'],
+                        'name': person['name'],
+                        'profile_path': person.get('profile_path'),
+                        'popularity': person.get('popularity', 0)
+                    })
+        
+        return jsonify(directors)
+    except Exception as e:
+        print(f"Ошибка поиска режиссёров: {e}")
+        return jsonify([])
+
+@app.route('/reset_progress', methods=['POST'])
+def reset_progress():
+    """Сброс прогресса пользователя (очищает предпочтения, оценки и рекомендации)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = db.get_user_by_id(session['user_id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Очищаем все данные
+    user.preferences = {}
+    user.ratings = {}
+    user.recommendations = {}
+    user.skipped = {}
+    
+    # Обновляем в базе данных
+    db.update_user(user)
+    
+    # Очищаем сессию
+    session.pop('skipped_movies', None)
+    session.pop('user_recommendations', None)
+    
+    logger.info(f"🔄 Пользователь {user.username or user.user_id} сбросил свой прогресс")
+    
+    return jsonify({
+        'success': True,
+        'message': 'Прогресс сброшен. Начните заново с выбора предпочтений.'
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

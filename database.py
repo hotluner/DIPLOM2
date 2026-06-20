@@ -3,6 +3,7 @@ import json
 from typing import Optional, Dict, List
 from datetime import datetime
 from contextlib import contextmanager
+from venv import logger
 from models import User
 import secrets
 
@@ -231,18 +232,24 @@ class Database:
             cursor.execute('''
                 UPDATE users 
                 SET preferences = ?, ratings = ?, recommendations = ?, 
-                    updated_at = ?, last_recommended_at = ?
+                    skipped = ?, updated_at = ?, last_recommended_at = ?
                 WHERE user_id = ?
             ''', (
                 data['preferences'],
                 data['ratings'],
                 data['recommendations'],
+                data['skipped'],
                 data['updated_at'],
                 data['last_recommended_at'],
                 user.user_id
             ))
-            print(f"✅ Обновлён пользователь {user.user_id}")
-            print(f"   Предпочтения: {data['preferences']}")
+            
+            # Проверяем, что обновление прошло успешно
+            if cursor.rowcount == 0:
+                raise ValueError(f"Пользователь с ID {user.user_id} не найден")
+            
+            logger.info(f"✅ Обновлён пользователь {user.user_id}")
+            logger.info(f"   Рекомендации: {data['recommendations']}")
 
     def delete_user(self, user_id: int):
         """Удаляет пользователя"""

@@ -2,22 +2,234 @@
 
 {% block title %}Предпочтения - MovieRecommender{% endblock %}
 
+{% block extra_css %}
+<style>
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #1a1a3e;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 0 0 10px 10px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Для актёров - выше приоритет */
+    .actors-search .search-results {
+        z-index: 1001;
+    }
+    
+    /* Для режиссёров - чуть ниже */
+    .directors-search .search-results {
+        z-index: 1000;
+    }
+    
+    .search-results .result-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: background 0.2s;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .search-results .result-item:hover {
+        background: rgba(108, 99, 255, 0.2);
+    }
+    
+    .search-results .result-item .result-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6c63ff, #4a47a3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    
+    .search-results .result-item .result-name {
+        flex: 1;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .search-results .result-item .result-badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(108, 99, 255, 0.3);
+        color: #6c63ff;
+        flex-shrink: 0;
+    }
+    
+    .selected-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+        min-height: 40px;
+    }
+    
+    .selected-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        background: rgba(108, 99, 255, 0.15);
+        border: 1px solid rgba(108, 99, 255, 0.3);
+        border-radius: 20px;
+        color: white;
+        font-size: 0.9rem;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    .selected-item .remove-btn {
+        cursor: pointer;
+        color: #ff6b6b;
+        font-weight: bold;
+        margin-left: 5px;
+        transition: transform 0.2s;
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+    
+    .selected-item .remove-btn:hover {
+        transform: scale(1.3);
+    }
+    
+    .range-slider {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .range-slider select {
+        flex: 1;
+        padding: 8px 12px;
+        background: #1a1a3e;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+    }
+    
+    .range-slider select option {
+        background: #1a1a3e;
+        color: white;
+        padding: 10px;
+    }
+
+    .range-slider select:focus {
+        border-color: #6c63ff;
+        outline: none;
+    }
+    
+    .range-slider span {
+        color: #666688;
+    }
+    
+    .search-input-wrapper {
+        position: relative;
+    }
+    
+    .search-input-wrapper .spinner {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: none;
+    }
+    
+    .search-input-wrapper .spinner.show {
+        display: block;
+    }
+    
+    /* Стили для скролла в выпадающем списке */
+    .search-results::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .search-results::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.05);
+        border-radius: 3px;
+    }
+    
+    .search-results::-webkit-scrollbar-thumb {
+        background: #6c63ff;
+        border-radius: 3px;
+    }
+    
+    .search-results::-webkit-scrollbar-thumb:hover {
+        background: #4a47a3;
+    }
+
+        /* Карточка с актёрами должна быть выше следующей */
+    .actors-card {
+        position: relative;
+        z-index: 20;
+    }
+
+    /* Карточка режиссёров ниже */
+    .directors-card {
+        position: relative;
+        z-index: 10;
+    }
+
+    /* Выпадающие списки */
+    .search-results {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+
+        background: #1a1a3e;
+        border-radius: 10px;
+
+        max-height: 200px;
+        overflow-y: auto;
+
+        z-index: 9999;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
         <h1 class="section-title">Ваши предпочтения</h1>
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i> 
-            <strong>Это обязательный этап!</strong> Выберите жанры, актёров и режиссёров, которые вам нравятся. 
+            <strong>Это обязательный этап!</strong> Выберите жанры, актёров, режиссёров и другие параметры.
             Это поможет нам подобрать идеальные фильмы.
         </div>
-        <p class="text-secondary mb-4">
-            <span class="text-danger">*</span> Обязательно выберите хотя бы один жанр.
-        </p>
     </div>
     
     <div class="col-12">
         <form method="POST" action="{{ url_for('preferences') }}" id="preferencesForm">
+            
             <!-- Жанры (обязательные) -->
             <div class="card p-4 mb-4" id="genresCard">
                 <h4 class="text-white mb-3">
@@ -47,23 +259,89 @@
                 </div>
             </div>
 
-            <!-- Актёры (опциональные) -->
-            <div class="card p-4 mb-4">
+            <!-- Поиск актёров -->
+            <div class="card p-4 mb-4 actors-card">
                 <h4 class="text-white mb-3">
                     <i class="bi bi-people" style="color: #6c63ff;"></i> 
                     Любимые актёры
                 </h4>
-                <p class="text-secondary small">Выберите до 3 актёров (опционально)</p>
+                <p class="text-secondary small">Начните вводить имя актёра для поиска</p>
+                <div class="search-container actors-search">
+                    <div class="search-input-wrapper">
+                        <input type="text" class="form-control" id="actorSearch" 
+                               placeholder="Например: Леонардо ДиКаприо" autocomplete="off">
+                        <div class="spinner" id="actorSpinner">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="search-results" id="actorResults"></div>
+                </div>
+                <div class="selected-items" id="selectedActors">
+                    {% if user.preferences and user.preferences.get('actors') %}
+                        {% for actor in user.preferences.get('actors', []) %}
+                            <span class="selected-item" data-name="{{ actor }}">
+                                {{ actor }}
+                                <span class="remove-btn" onclick="removeActor('{{ actor }}')">&times;</span>
+                            </span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <input type="hidden" name="actors" id="actorsInput" 
+                       value="{% if user.preferences and user.preferences.get('actors') %}{{ user.preferences.get('actors', [])|join(',') }}{% endif %}">
+            </div>
+
+            <!-- Поиск режиссёров -->
+            <div class="card p-4 mb-4 directors-card">
+                <h4 class="text-white mb-3">
+                    <i class="bi bi-camera-reels" style="color: #6c63ff;"></i> 
+                    Любимые режиссёры
+                </h4>
+                <p class="text-secondary small">Начните вводить имя режиссёра для поиска</p>
+                <div class="search-container directors-search">
+                    <div class="search-input-wrapper">
+                        <input type="text" class="form-control" id="directorSearch" 
+                               placeholder="Например: Кристофер Нолан" autocomplete="off">
+                        <div class="spinner" id="directorSpinner">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="search-results" id="directorResults"></div>
+                </div>
+                <div class="selected-items" id="selectedDirectors">
+                    {% if user.preferences and user.preferences.get('directors') %}
+                        {% for director in user.preferences.get('directors', []) %}
+                            <span class="selected-item" data-name="{{ director }}">
+                                {{ director }}
+                                <span class="remove-btn" onclick="removeDirector('{{ director }}')">&times;</span>
+                            </span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <input type="hidden" name="directors" id="directorsInput" 
+                       value="{% if user.preferences and user.preferences.get('directors') %}{{ user.preferences.get('directors', [])|join(',') }}{% endif %}">
+            </div>
+
+            <!-- Страны -->
+            <div class="card p-4 mb-4" style="position: relative; z-index: 1;">
+                <h4 class="text-white mb-3">
+                    <i class="bi bi-globe" style="color: #6c63ff;"></i> 
+                    Страны производства
+                </h4>
+                <p class="text-secondary small">Выберите страны, фильмы которых вам интересны</p>
                 <div class="row g-3">
-                    {% for actor in actors %}
-                    <div class="col-md-4 col-6">
+                    {% for country in countries %}
+                    <div class="col-md-3 col-6">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" 
-                                   name="actors" value="{{ actor }}" 
-                                   id="actor_{{ loop.index }}"
-                                   {% if user.preferences and actor in user.preferences.get('actors', []) %}checked{% endif %}>
-                            <label class="form-check-label" for="actor_{{ loop.index }}">
-                                {{ actor }}
+                                   name="countries" value="{{ country }}" 
+                                   id="country_{{ loop.index }}"
+                                   {% if user.preferences and country in user.preferences.get('countries', []) %}checked{% endif %}>
+                            <label class="form-check-label" for="country_{{ loop.index }}">
+                                {{ country }}
                             </label>
                         </div>
                     </div>
@@ -71,27 +349,33 @@
                 </div>
             </div>
 
-            <!-- Режиссёры (опциональные) -->
+            <!-- Год выпуска -->
             <div class="card p-4 mb-4">
                 <h4 class="text-white mb-3">
-                    <i class="bi bi-camera-reels" style="color: #6c63ff;"></i> 
-                    Любимые режиссёры
+                    <i class="bi bi-calendar" style="color: #6c63ff;"></i> 
+                    Год выпуска
                 </h4>
-                <p class="text-secondary small">Выберите до 3 режиссёров (опционально)</p>
-                <div class="row g-3">
-                    {% for director in directors %}
-                    <div class="col-md-4 col-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" 
-                                   name="directors" value="{{ director }}" 
-                                   id="director_{{ loop.index }}"
-                                   {% if user.preferences and director in user.preferences.get('directors', []) %}checked{% endif %}>
-                            <label class="form-check-label" for="director_{{ loop.index }}">
-                                {{ director }}
-                            </label>
-                        </div>
-                    </div>
-                    {% endfor %}
+                <p class="text-secondary small">Выберите диапазон годов выпуска фильмов</p>
+                <div class="range-slider">
+                    <select name="year_from" id="yearFrom">
+                        <option value="">От (год)</option>
+                        {% for year in years %}
+                            <option value="{{ year }}" 
+                                    {% if user.preferences and user.preferences.get('year_from')|int == year %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <span>—</span>
+                    <select name="year_to" id="yearTo">
+                        <option value="">До (год)</option>
+                        {% for year in years %}
+                            <option value="{{ year }}"
+                                    {% if user.preferences and user.preferences.get('year_to')|int == year %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
 
@@ -109,13 +393,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Валидация жанров ---
     const form = document.getElementById('preferencesForm');
     const genreCheckboxes = document.querySelectorAll('.genre-checkbox');
     const genreError = document.getElementById('genreError');
-    const submitBtn = document.getElementById('submitBtn');
     const genresCard = document.getElementById('genresCard');
     
-    // Функция проверки выбора жанров
     function checkGenresSelected() {
         let checked = false;
         genreCheckboxes.forEach(function(cb) {
@@ -124,18 +407,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return checked;
     }
     
-    // Обработка отправки формы
     form.addEventListener('submit', function(e) {
         if (!checkGenresSelected()) {
             e.preventDefault();
             genreError.style.display = 'block';
             genresCard.style.border = '2px solid #dc3545';
             genresCard.style.boxShadow = '0 0 20px rgba(220, 53, 69, 0.2)';
-            
-            // Прокручиваем к ошибке
             genreError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Убираем подсветку через 3 секунды
             setTimeout(() => {
                 genresCard.style.border = '1px solid rgba(255,255,255,0.1)';
                 genresCard.style.boxShadow = 'none';
@@ -143,7 +421,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Скрываем ошибку при выборе жанра
     genreCheckboxes.forEach(function(cb) {
         cb.addEventListener('change', function() {
             if (checkGenresSelected()) {
@@ -153,15 +430,183 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // --- Поиск актёров ---
+    const actorSearch = document.getElementById('actorSearch');
+    const actorResults = document.getElementById('actorResults');
+    const actorSpinner = document.getElementById('actorSpinner');
+    const selectedActors = document.getElementById('selectedActors');
+    const actorsInput = document.getElementById('actorsInput');
     
-    // Предотвращаем отправку формы при нажатии Enter в чекбоксах
-    document.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
-        cb.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-            }
-        });
+    let actorSearchTimeout = null;
+    
+    actorSearch.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(actorSearchTimeout);
+        
+        if (query.length < 2) {
+            actorResults.style.display = 'none';
+            return;
+        }
+        
+        actorSpinner.classList.add('show');
+        actorSearchTimeout = setTimeout(() => {
+            fetch(`/api/search_actors?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    actorSpinner.classList.remove('show');
+                    if (data.length > 0) {
+                        actorResults.innerHTML = data.map(actor => `
+                            <div class="result-item" onclick="addActor('${actor.name.replace(/'/g, "\\'")}')">
+                                <div class="result-avatar">${actor.name.charAt(0)}</div>
+                                <div class="result-name">${actor.name}</div>
+                                <span class="result-badge">${Math.round(actor.popularity)}</span>
+                            </div>
+                        `).join('');
+                        actorResults.style.display = 'block';
+                    } else {
+                        actorResults.innerHTML = '<div class="result-item text-secondary">Актёры не найдены</div>';
+                        actorResults.style.display = 'block';
+                    }
+                })
+                .catch(() => {
+                    actorSpinner.classList.remove('show');
+                    actorResults.style.display = 'none';
+                });
+        }, 300);
+    });
+    
+    // Закрываем выпадающий список при клике вне
+    document.addEventListener('click', function(e) {
+        const container = document.querySelector('.actors-search');
+        if (container && !container.contains(e.target)) {
+            actorResults.style.display = 'none';
+        }
+    });
+
+    // --- Поиск режиссёров ---
+    const directorSearch = document.getElementById('directorSearch');
+    const directorResults = document.getElementById('directorResults');
+    const directorSpinner = document.getElementById('directorSpinner');
+    const selectedDirectors = document.getElementById('selectedDirectors');
+    const directorsInput = document.getElementById('directorsInput');
+    
+    let directorSearchTimeout = null;
+    
+    directorSearch.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(directorSearchTimeout);
+        
+        if (query.length < 2) {
+            directorResults.style.display = 'none';
+            return;
+        }
+        
+        directorSpinner.classList.add('show');
+        directorSearchTimeout = setTimeout(() => {
+            fetch(`/api/search_directors?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    directorSpinner.classList.remove('show');
+                    if (data.length > 0) {
+                        directorResults.innerHTML = data.map(director => `
+                            <div class="result-item" onclick="addDirector('${director.name.replace(/'/g, "\\'")}')">
+                                <div class="result-avatar">${director.name.charAt(0)}</div>
+                                <div class="result-name">${director.name}</div>
+                                <span class="result-badge">${Math.round(director.popularity)}</span>
+                            </div>
+                        `).join('');
+                        directorResults.style.display = 'block';
+                    } else {
+                        directorResults.innerHTML = '<div class="result-item text-secondary">Режиссёры не найдены</div>';
+                        directorResults.style.display = 'block';
+                    }
+                })
+                .catch(() => {
+                    directorSpinner.classList.remove('show');
+                    directorResults.style.display = 'none';
+                });
+        }, 300);
+    });
+    
+    document.addEventListener('click', function(e) {
+        const container = document.querySelector('.directors-search');
+        if (container && !container.contains(e.target)) {
+            directorResults.style.display = 'none';
+        }
     });
 });
+
+// --- Функции для работы с актёрами ---
+function addActor(name) {
+    const selectedContainer = document.getElementById('selectedActors');
+    const input = document.getElementById('actorsInput');
+    
+    // Проверяем, не добавлен ли уже
+    const existing = selectedContainer.querySelector(`[data-name="${name}"]`);
+    if (existing) return;
+    
+    // Добавляем визуально
+    const tag = document.createElement('span');
+    tag.className = 'selected-item';
+    tag.dataset.name = name;
+    tag.innerHTML = `${name} <span class="remove-btn" onclick="removeActor('${name}')">&times;</span>`;
+    selectedContainer.appendChild(tag);
+    
+    // Обновляем скрытое поле
+    updateActorsInput();
+    
+    // Очищаем поиск и скрываем результаты
+    document.getElementById('actorSearch').value = '';
+    document.getElementById('actorResults').style.display = 'none';
+}
+
+function removeActor(name) {
+    const selectedContainer = document.getElementById('selectedActors');
+    const tag = selectedContainer.querySelector(`[data-name="${name}"]`);
+    if (tag) tag.remove();
+    updateActorsInput();
+}
+
+function updateActorsInput() {
+    const container = document.getElementById('selectedActors');
+    const tags = container.querySelectorAll('.selected-item');
+    const names = Array.from(tags).map(tag => tag.dataset.name);
+    document.getElementById('actorsInput').value = names.join(',');
+}
+
+// --- Функции для работы с режиссёрами ---
+function addDirector(name) {
+    const selectedContainer = document.getElementById('selectedDirectors');
+    const input = document.getElementById('directorsInput');
+    
+    const existing = selectedContainer.querySelector(`[data-name="${name}"]`);
+    if (existing) return;
+    
+    const tag = document.createElement('span');
+    tag.className = 'selected-item';
+    tag.dataset.name = name;
+    tag.innerHTML = `${name} <span class="remove-btn" onclick="removeDirector('${name}')">&times;</span>`;
+    selectedContainer.appendChild(tag);
+    
+    updateDirectorsInput();
+    
+    document.getElementById('directorSearch').value = '';
+    document.getElementById('directorResults').style.display = 'none';
+}
+
+function removeDirector(name) {
+    const selectedContainer = document.getElementById('selectedDirectors');
+    const tag = selectedContainer.querySelector(`[data-name="${name}"]`);
+    if (tag) tag.remove();
+    updateDirectorsInput();
+}
+
+function updateDirectorsInput() {
+    const container = document.getElementById('selectedDirectors');
+    const tags = container.querySelectorAll('.selected-item');
+    const names = Array.from(tags).map(tag => tag.dataset.name);
+    document.getElementById('directorsInput').value = names.join(',');
+}
 </script>
 {% endblock %}
