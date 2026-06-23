@@ -404,7 +404,11 @@ def admin():
         return redirect(url_for('index'))
     
     all_users = db.get_all_users()
-    return render_template('admin.html', users=all_users)
+    all_movies = db.get_all_movies()  # Получаем все фильмы
+    
+    return render_template('admin.html', 
+                         users=all_users,
+                         movies=all_movies)  # Передаём movies в шаблон
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
@@ -578,9 +582,9 @@ def search_directors():
         print(f"Ошибка поиска режиссёров: {e}")
         return jsonify([])
 
-@app.route('/reset_progress', methods=['POST'])
-def reset_progress():
-    """Сброс прогресса пользователя (очищает предпочтения, оценки и рекомендации)"""
+@app.route('/reset_preferences', methods=['POST'])
+def reset_preferences():
+    """Сброс предпочтений пользователя (очищает предпочтения, оценки и рекомендации)"""
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -588,7 +592,7 @@ def reset_progress():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    # Очищаем все данные
+    # Очищаем все данные пользователя
     user.preferences = {}
     user.ratings = {}
     user.recommendations = {}
@@ -601,12 +605,105 @@ def reset_progress():
     session.pop('skipped_movies', None)
     session.pop('user_recommendations', None)
     
-    logger.info(f"🔄 Пользователь {user.username or user.user_id} сбросил свой прогресс")
-    
     return jsonify({
         'success': True,
-        'message': 'Прогресс сброшен. Начните заново с выбора предпочтений.'
+        'message': 'Предпочтения сброшены. Выберите новые предпочтения для получения рекомендаций.'
     })
+
+@app.route('/admin/add_movie/<int:tmdb_id>', methods=['POST'])
+def admin_add_movie(tmdb_id):
+    """Добавление фильма из TMDB в базу данных (только для админа)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = db.get_user_by_id(session['user_id'])
+    if not user or not user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    try:
+        # Получаем детальную информацию о фильме из TMDB
+        details = tmdb_service.get_movie_details(tmdb_id)
+        
+        if not details or not details.get('title'):
+            return jsonify({'error': 'Фильм не найден в TMDB'}), 404
+        
+        # Проверяем, есть ли уже в БД
+        existing = db.get_movie(details['movie_id'])
+        if existing:
+            return jsonify({
+                'error': f'Фильм "{details["title"]}" уже есть в базе данных',
+                'exists': True
+            }), 400
+        
+        # Добавляем фильм в БД
+        db.add_movie(details)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Фильм "{details["title"]}" ({details["year"]}) добавлен!',
+            'movie': details
+        })
+        
+    except Exception as e:
+        logger.error(f"Ошибка при добавлении фильма: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/movies')
+def admin_movies():
+    """Страница управления фильмами (только для админа)"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = db.get_user_by_id(session['user_id'])
+    if not user or not user.is_admin:
+        flash('Доступ запрещён', 'danger')
+        return redirect(url_for('index'))
+    
+    # Получаем все фильмы с пагинацией
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    all_movies = db.get_all_movies()
+    
+    # Пагинация
+    total = len(all_movies)
+    start = (page - 1) * per_page
+    end = start + per_page
+    movies_page = all_movies[start:end]
+    
+    return render_template('admin_movies.html',
+                         movies=movies_page,
+                         page=page,
+                         total=total,
+                         per_page=per_page)
+
+@app.route('/admin/delete_movie/<movie_id>', methods=['POST'])
+def admin_delete_movie(movie_id):
+    """Удаление фильма из базы данных (только для админа)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = db.get_user_by_id(session['user_id'])
+    if not user or not user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    # Проверяем, существует ли фильм
+    movie = db.get_movie(movie_id)
+    if not movie:
+        return jsonify({'error': 'Фильм не найден'}), 404
+    
+    try:
+        # Удаляем фильм
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM movies WHERE movie_id = ?', (movie_id,))
+        
+        return jsonify({
+            'success': True,
+            'message': f'Фильм "{movie["title"]}" удалён!'
+        })
+    except Exception as e:
+        logger.error(f"Ошибка при удалении фильма: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

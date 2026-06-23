@@ -2,16 +2,122 @@
 
 {% block title %}Рекомендации - MovieRecommender{% endblock %}
 
+{% block extra_css %}
+<style>
+    .reset-btn {
+        transition: all 0.3s;
+    }
+    
+    .reset-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+    }
+    
+    .reset-modal .modal-content {
+        background: #1a1a3e;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .reset-modal .modal-header {
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .reset-modal .modal-footer {
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .recommendation-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    
+    .preferences-summary {
+        background: rgba(108, 99, 255, 0.1);
+        border: 1px solid rgba(108, 99, 255, 0.2);
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+    }
+    
+    .preferences-summary .label {
+        color: #6c63ff;
+        font-weight: 600;
+        margin-right: 10px;
+    }
+    
+    .preferences-summary .value {
+        color: #ccccdd;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="section-title">
-            <i class="bi bi-lightbulb" style="color: #ffc107;"></i> 
-            Ваши персональные рекомендации
-        </h1>
-        <p class="text-secondary">
-            Мы подобрали для вас лучшие фильмы на основе ваших предпочтений и оценок.
-        </p>
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="section-title">
+                    <i class="bi bi-lightbulb" style="color: #ffc107;"></i> 
+                    Ваши персональные рекомендации
+                </h1>
+                <p class="text-secondary">
+                    Мы подобрали для вас лучшие фильмы на основе ваших предпочтений и оценок.
+                </p>
+            </div>
+            
+            <!-- Кнопка сброса -->
+            <button class="btn btn-outline-danger reset-btn" data-bs-toggle="modal" data-bs-target="#resetModal">
+                <i class="bi bi-arrow-counterclockwise"></i> Сбросить предпочтения
+            </button>
+        </div>
+        
+        <!-- Краткая сводка предпочтений -->
+        {% if user.preferences and user.preferences.get('genres') %}
+        <div class="preferences-summary">
+            <div>
+                <span class="label">Жанры:</span>
+                <span class="value">
+                    {% for genre in user.preferences.get('genres', []) %}
+                        <span class="genre-tag">{{ genre }}</span>
+                    {% endfor %}
+                </span>
+            </div>
+            {% if user.preferences.get('actors') %}
+            <div class="mt-1">
+                <span class="label">Актёры:</span>
+                <span class="value">
+                    {% for actor in user.preferences.get('actors', [])[:3] %}
+                        <span class="genre-tag">{{ actor }}</span>
+                    {% endfor %}
+                    {% if user.preferences.get('actors', [])|length > 3 %}
+                        <span class="genre-tag">+{{ user.preferences.get('actors', [])|length - 3 }}</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+            {% if user.preferences.get('directors') %}
+            <div class="mt-1">
+                <span class="label">Режиссёры:</span>
+                <span class="value">
+                    {% for director in user.preferences.get('directors', [])[:3] %}
+                        <span class="genre-tag">{{ director }}</span>
+                    {% endfor %}
+                    {% if user.preferences.get('directors', [])|length > 3 %}
+                        <span class="genre-tag">+{{ user.preferences.get('directors', [])|length - 3 }}</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+            <div class="mt-1">
+                <span class="label">Оценок:</span>
+                <span class="value">{{ user.ratings|length if user.ratings else 0 }}</span>
+            </div>
+        </div>
+        {% endif %}
+        
         {% if recommendations %}
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i> 
@@ -22,13 +128,14 @@
     </div>
 </div>
 
+<!-- Рекомендации -->
 {% if recommendations %}
     <div class="row g-4">
         {% for movie in recommendations %}
         <div class="col-md-4 col-lg-3">
             <div class="card h-100 movie-card" onclick="window.location.href='{{ url_for('movie_detail', movie_id=movie.movie_id) }}'">
                 <div class="movie-poster d-flex align-items-center justify-content-center" 
-                     style="background: linear-gradient(135deg, #1a1a3e, #2a2a5e); height: 300px;">
+                     style="background: linear-gradient(135deg, #1a1a3e, #2a2a5e); height: 300px; position: relative;">
                     {% if movie.poster_url %}
                         <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" 
                              class="img-fluid h-100 w-100" style="object-fit: cover;">
@@ -65,7 +172,7 @@
         {% endfor %}
     </div>
 
-    <!-- Дополнительная информация -->
+    <!-- Информация о том, как подобраны рекомендации -->
     <div class="col-12 mt-4">
         <div class="card p-4">
             <h5 class="text-white">
@@ -76,19 +183,19 @@
                 <div class="col-md-6">
                     <div class="d-flex align-items-center">
                         <div class="me-3" style="width: 10px; height: 10px; background: #6c63ff; border-radius: 50%;"></div>
-                        <span class="text-secondary">Жанры: 35%</span>
+                        <span class="text-secondary">Жанры: 30%</span>
                     </div>
                     <div class="progress mt-1" style="height: 5px;">
-                        <div class="progress-bar" style="width: 35%; background: #6c63ff;"></div>
+                        <div class="progress-bar" style="width: 30%; background: #6c63ff;"></div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="d-flex align-items-center">
                         <div class="me-3" style="width: 10px; height: 10px; background: #ff6b6b; border-radius: 50%;"></div>
-                        <span class="text-secondary">Актёры: 25%</span>
+                        <span class="text-secondary">Актёры: 20%</span>
                     </div>
                     <div class="progress mt-1" style="height: 5px;">
-                        <div class="progress-bar" style="width: 25%; background: #ff6b6b;"></div>
+                        <div class="progress-bar" style="width: 20%; background: #ff6b6b;"></div>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -110,9 +217,25 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Кнопка для переоценки -->
+            <div class="mt-3 pt-3 border-top border-secondary">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <small class="text-secondary">
+                            <i class="bi bi-info-circle"></i> 
+                            Не нравятся рекомендации? Сбросьте предпочтения и выберите новые.
+                        </small>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#resetModal">
+                        <i class="bi bi-arrow-counterclockwise"></i> Сбросить предпочтения
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 {% else %}
+    <!-- Нет рекомендаций -->
     <div class="col-12">
         <div class="card p-5 text-center">
             <i class="bi bi-emoji-frown" style="font-size: 4rem; color: #ffc107;"></i>
@@ -128,4 +251,93 @@
         </div>
     </div>
 {% endif %}
+
+<!-- Модальное окно для сброса предпочтений -->
+<div class="modal fade reset-modal" id="resetModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-danger">
+                <h5 class="modal-title text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    Сброс предпочтений
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>ВНИМАНИЕ!</strong>
+                </div>
+                
+                <p class="text-secondary">Это действие удалит:</p>
+                <ul class="text-secondary">
+                    <li>✅ Все ваши предпочтения (жанры, актёры, режиссёры)</li>
+                    <li>✅ Все оценки фильмов</li>
+                    <li>✅ Все рекомендации</li>
+                </ul>
+                
+                <p class="text-secondary mt-3">
+                    После сброса вы сможете заново выбрать предпочтения и получить новые рекомендации.
+                </p>
+                
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="confirmReset">
+                    <label class="form-check-label text-secondary" for="confirmReset">
+                        Я понимаю, что это действие необратимо
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmResetBtn" disabled>
+                    <i class="bi bi-trash"></i> Сбросить предпочтения
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Сброс предпочтений ---
+    const resetCheckbox = document.getElementById('confirmReset');
+    const resetBtn = document.getElementById('confirmResetBtn');
+    
+    resetCheckbox.addEventListener('change', function() {
+        resetBtn.disabled = !this.checked;
+    });
+    
+    resetBtn.addEventListener('click', function() {
+        // Отправляем запрос на сброс
+        fetch('/reset_preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ ' + data.message);
+                // Перенаправляем на страницу предпочтений
+                window.location.href = '/preferences';
+            } else {
+                alert('❌ Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('❌ Произошла ошибка: ' + error);
+        });
+    });
+    
+    // Сбрасываем чекбокс при закрытии модального окна
+    document.getElementById('resetModal').addEventListener('hidden.bs.modal', function() {
+        resetCheckbox.checked = false;
+        resetBtn.disabled = true;
+    });
+});
+</script>
 {% endblock %}

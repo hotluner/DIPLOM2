@@ -4,7 +4,6 @@ from typing import List, Dict, Optional, Any
 from werkzeug.security import generate_password_hash, check_password_hash
 
 class User:
-    """Модель пользователя"""
     
     def __init__(self, user_id: Optional[int] = None, session_id: str = None):
         self.user_id = user_id
@@ -22,11 +21,9 @@ class User:
         self.is_admin = False  # Флаг администратора
     
     def set_password(self, password: str):
-        """Устанавливает пароль (хеширует)"""
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password: str) -> bool:
-        """Проверяет пароль"""
         if not self.password_hash:
             return False
         return check_password_hash(self.password_hash, password)

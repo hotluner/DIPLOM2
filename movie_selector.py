@@ -8,9 +8,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 class MovieSelector:
-    """
-    Класс для умного подбора фильмов для оценки
-    """
     
     def __init__(self):
         self.user = None
@@ -26,20 +23,15 @@ class MovieSelector:
         self.skipped_movies = skipped_movies
     
     def get_next_movie(self) -> Optional[Dict]:
-        """
-        Главный метод: возвращает следующий фильм для оценки
-        """
-        # Получаем доступные фильмы
+       
         available = self._get_available_movies()
         
         if not available:
             return None
         
-        # Если у пользователя есть предпочтения - используем их
         if self.user.preferences and self.user.preferences.get('genres'):
             return self._get_movie_by_preferences(available)
         
-        # Если пользователь уже оценил несколько фильмов - ищем похожие
         if len(self.rated_movies) >= 3:
             return self._get_movie_by_similarity(available)
         

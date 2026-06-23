@@ -2,6 +2,211 @@
 
 {% block title %}Админ-панель - MovieRecommender{% endblock %}
 
+{% block extra_css %}
+<style>
+    .search-result-item {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .search-result-item:hover {
+        background: rgba(108, 99, 255, 0.1);
+        border-color: rgba(108, 99, 255, 0.3);
+    }
+    
+    .search-result-item .result-poster {
+        width: 60px;
+        height: 90px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #1a1a3e, #2a2a5e);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    
+    .search-result-item .result-poster img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .search-result-item .result-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .search-result-item .result-info .title {
+        color: white;
+        font-weight: 600;
+        font-size: 1.05rem;
+    }
+    
+    .search-result-item .result-info .year {
+        color: #8888aa;
+        font-size: 0.9rem;
+        margin-left: 10px;
+    }
+    
+    .search-result-item .result-info .genres {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+    }
+    
+    .search-result-item .result-info .genres .genre-tag-small {
+        background: rgba(108, 99, 255, 0.15);
+        color: #6c63ff;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+    
+    .search-result-item .result-actions {
+        flex-shrink: 0;
+    }
+    
+    .search-result-item .result-actions .btn-add {
+        padding: 6px 20px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .search-result-item .result-actions .btn-add:hover {
+        transform: scale(1.05);
+    }
+    
+    .search-result-item .result-actions .btn-add:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .search-result-item .result-actions .btn-added {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 6px 20px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: default;
+    }
+    
+    .search-loading {
+        text-align: center;
+        padding: 30px;
+        color: #8888aa;
+    }
+    
+    .search-empty {
+        text-align: center;
+        padding: 30px;
+        color: #8888aa;
+    }
+    
+    .search-empty i {
+        font-size: 3rem;
+        color: #4a4a5a;
+        display: block;
+        margin-bottom: 10px;
+    }
+    
+    .admin-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .admin-stats .stat-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .admin-stats .stat-card .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: white;
+    }
+    
+    .admin-stats .stat-card .stat-label {
+        color: #8888aa;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+    
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    
+    .toast-custom {
+        background: #1a1a3e;
+        border: 1px solid rgba(255,255,255,0.1);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        animation: slideIn 0.3s ease;
+        min-width: 300px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    
+    .toast-custom.success {
+        border-left: 4px solid #28a745;
+    }
+    
+    .toast-custom.error {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .toast-custom.info {
+        border-left: 4px solid #17a2b8;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .toast-custom .toast-close {
+        float: right;
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 1.2rem;
+        cursor: pointer;
+        margin-left: 15px;
+    }
+    
+    .toast-custom .toast-close:hover {
+        color: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -9,9 +214,40 @@
             <i class="bi bi-shield-lock" style="color: #dc3545;"></i> 
             Административная панель
         </h1>
-        <p class="text-secondary mb-4">Управление пользователями и их рекомендациями</p>
+        <p class="text-secondary mb-4">Управление пользователями и фильмами</p>
     </div>
 
+    <!-- Статистика -->
+    <div class="col-12 mb-4">
+        <div class="admin-stats">
+            <div class="stat-card">
+                <div class="stat-number">{{ users|length }}</div>
+                <div class="stat-label">Пользователей</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">
+                    {{ movies|length if movies else 0 }}
+                </div>
+                <div class="stat-label">Фильмов в БД</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">
+                    {% set rated_users = users|selectattr('ratings', 'defined')|list|selectattr('ratings', 'ne', {})|list %}
+                    {{ rated_users|length }}
+                </div>
+                <div class="stat-label">Оценили фильмы</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">
+                    {% set rec_users = users|selectattr('recommendations', 'defined')|list|selectattr('recommendations', 'ne', {})|list %}
+                    {{ rec_users|length }}
+                </div>
+                <div class="stat-label">Получили рекомендации</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Управление фильмами -->
     <div class="col-12 mb-4">
         <div class="card p-4">
             <h4 class="text-white">
@@ -19,109 +255,30 @@
                 Управление фильмами из TMDB
             </h4>
             <div class="row g-3 mt-2">
-                <div class="col-md-6">
-                    <a href="{{ url_for('admin_update_movies') }}" class="btn btn-primary w-100">
-                        <i class="bi bi-download"></i> Загрузить популярные фильмы
+                <div class="col-md-4">
+                    <a href="{{ url_for('admin_update_movies') }}" class="btn btn-primary w-100" id="loadPopularBtn">
+                        <i class="bi bi-download"></i> Загрузить популярные
                     </a>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <a href="{{ url_for('admin_movies') }}" class="btn btn-info w-100">
+                        <i class="bi bi-list"></i> Все фильмы ({{ movies|length if movies else 0 }})
+                    </a>
+                </div>
+                <div class="col-md-4">
                     <div class="input-group">
                         <input type="text" class="form-control" id="searchMovieInput" 
-                            placeholder="Поиск фильма по названию...">
-                        <button class="btn btn-outline-light" id="searchMovieBtn">
-                            <i class="bi bi-search"></i>
+                            placeholder="Поиск фильма по названию..." 
+                            onkeypress="if(event.key==='Enter') searchMovies()">
+                        <button class="btn btn-outline-light" id="searchMovieBtn" onclick="searchMovies()">
+                            <i class="bi bi-search"></i> Найти
                         </button>
                     </div>
-                    <div id="searchResults" class="mt-2" style="max-height: 300px; overflow-y: auto;"></div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <script>
-    document.getElementById('searchMovieBtn').addEventListener('click', function() {
-        const query = document.getElementById('searchMovieInput').value;
-        if (!query) return;
-        
-        fetch(`/admin/search_movies?query=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                const results = document.getElementById('searchResults');
-                if (data.length === 0) {
-                    results.innerHTML = '<div class="alert alert-info">Фильмы не найдены</div>';
-                    return;
-                }
-                
-                let html = '<div class="list-group">';
-                data.forEach(movie => {
-                    html += `
-                        <div class="list-group-item bg-dark text-light">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${movie.title}</strong>
-                                    <span class="text-secondary">(${movie.year || 'N/A'})</span>
-                                </div>
-                                <button class="btn btn-sm btn-primary" onclick="addMovie(${movie.tmdb_id})">
-                                    <i class="bi bi-plus-circle"></i> Добавить
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                results.innerHTML = html;
-            });
-    });
-
-    function addMovie(tmdbId) {
-        // Здесь можно добавить логику для добавления конкретного фильма
-        alert('Функция добавления фильма будет реализована позже');
-    }
-    </script>
-
-    <!-- Статистика -->
-    <div class="col-12 mb-4">
-        <div class="row g-3">
-            <div class="col-md-3 col-6">
-                <div class="card p-3 text-center">
-                    <i class="bi bi-people" style="font-size: 2rem; color: #6c63ff;"></i>
-                    <h3 class="text-white mt-2">{{ users|length }}</h3>
-                    <span class="text-secondary">Всего пользователей</span>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="card p-3 text-center">
-                    <i class="bi bi-check-circle" style="font-size: 2rem; color: #28a745;"></i>
-                    <h3 class="text-white mt-2">
-                        {% set rated_users = users|selectattr('ratings', 'defined')|list|selectattr('ratings', 'ne', {})|list %}
-                        {{ rated_users|length }}
-                    </h3>
-                    <span class="text-secondary">Оценили фильмы</span>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="card p-3 text-center">
-                    <i class="bi bi-lightbulb" style="font-size: 2rem; color: #ffc107;"></i>
-                    <h3 class="text-white mt-2">
-                        {% set rec_users = users|selectattr('recommendations', 'defined')|list|selectattr('recommendations', 'ne', {})|list %}
-                        {{ rec_users|length }}
-                    </h3>
-                    <span class="text-secondary">Получили рекомендации</span>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="card p-3 text-center">
-                    <i class="bi bi-clock" style="font-size: 2rem; color: #17a2b8;"></i>
-                    <h3 class="text-white mt-2">
-                        {% set total_ratings = 0 %}
-                        {% for user in users %}
-                            {% set total_ratings = total_ratings + user.get_rating_count() %}
-                        {% endfor %}
-                        {{ total_ratings }}
-                    </h3>
-                    <span class="text-secondary">Всего оценок</span>
-                </div>
-            </div>
+            
+            <!-- Результаты поиска -->
+            <div id="searchResults" class="mt-3" style="max-height: 500px; overflow-y: auto;"></div>
         </div>
     </div>
 
@@ -133,9 +290,8 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Session ID</th>
+                            <th>Пользователь</th>
                             <th>Создан</th>
-                            <th>Обновлён</th>
                             <th>Оценок</th>
                             <th>Предпочтения</th>
                             <th>Рекомендации</th>
@@ -147,18 +303,14 @@
                         <tr>
                             <td>{{ user.user_id }}</td>
                             <td>
-                                <code class="text-light" style="font-size: 0.75rem;">
-                                    {{ user.session_id[:8] if user.session_id else '-' }}...
-                                </code>
+                                <strong class="text-white">{{ user.username or 'Аноним' }}</strong>
+                                {% if user.is_admin %}
+                                    <span class="badge bg-danger ms-1">Admin</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <small class="text-secondary">
                                     {{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '-' }}
-                                </small>
-                            </td>
-                            <td>
-                                <small class="text-secondary">
-                                    {{ user.updated_at.strftime('%d.%m.%Y %H:%M') if user.updated_at else '-' }}
                                 </small>
                             </td>
                             <td>
@@ -189,7 +341,7 @@
                                     <button class="btn btn-danger" onclick="deleteUser({{ user.user_id }})" title="Удалить пользователя">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                    <button class="btn btn-warning" onclick="deleteRecommendations({{ user.user_id }})" title="Очистить рекомендации">
+                                    <button class="btn btn-warning" onclick="deleteRecommendations({{ user.user_id }})" title="Стереть предпочтения и оценки">
                                         <i class="bi bi-eraser"></i>
                                     </button>
                                 </div>
@@ -228,6 +380,179 @@
 let actionToConfirm = null;
 let targetId = null;
 
+// --- Загрузка популярных фильмов ---
+document.addEventListener('DOMContentLoaded', function() {
+    const loadBtn = document.getElementById('loadPopularBtn');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', function(e) {
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Загрузка...';
+            this.disabled = true;
+        });
+    }
+});
+
+// --- Поиск фильмов ---
+function searchMovies() {
+    const query = document.getElementById('searchMovieInput').value.trim();
+    if (!query) {
+        document.getElementById('searchResults').innerHTML = `
+            <div class="search-empty">
+                <i class="bi bi-search"></i>
+                <p>Введите название фильма для поиска</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = `
+        <div class="search-loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2">Поиск фильмов...</p>
+        </div>
+    `;
+    
+    fetch(`/admin/search_movies?query=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                resultsDiv.innerHTML = `
+                    <div class="search-empty">
+                        <i class="bi bi-exclamation-triangle" style="color: #dc3545;"></i>
+                        <p class="text-danger">${data.error}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (data.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="search-empty">
+                        <i class="bi bi-emoji-frown"></i>
+                        <p>Фильмы не найдены. Попробуйте другой запрос.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            data.forEach(movie => {
+                const posterHtml = movie.poster_url ? 
+                    `<img src="${movie.poster_url}" alt="${movie.title}">` : 
+                    `<i class="bi bi-film" style="font-size: 1.5rem; color: #6c63ff;"></i>`;
+                
+                const genresHtml = movie.genres ? movie.genres.map(g => 
+                    `<span class="genre-tag-small">${g}</span>`
+                ).join('') : '';
+                
+                html += `
+                    <div class="search-result-item" id="result-${movie.tmdb_id}">
+                        <div class="result-poster">
+                            ${posterHtml}
+                        </div>
+                        <div class="result-info">
+                            <div>
+                                <span class="title">${movie.title}</span>
+                                <span class="year">${movie.year || 'N/A'}</span>
+                            </div>
+                            <div class="genres">${genresHtml}</div>
+                            <div class="mt-1">
+                                <small class="text-secondary">
+                                    <i class="bi bi-star-fill" style="color: #ffd700;"></i> 
+                                    ${movie.imdb_rating || 'N/A'}
+                                    ${movie.vote_count ? `(${movie.vote_count} голосов)` : ''}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="result-actions">
+                            <button class="btn btn-primary btn-add" onclick="addMovie(${movie.tmdb_id}, '${movie.title.replace(/'/g, "\\'")}')">
+                                <i class="bi bi-plus-circle"></i> Добавить
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `
+                <div class="search-empty">
+                    <i class="bi bi-exclamation-triangle" style="color: #dc3545;"></i>
+                    <p class="text-danger">Ошибка при поиске: ${error}</p>
+                </div>
+            `;
+        });
+}
+
+// --- Добавление фильма ---
+function addMovie(tmdbId, title) {
+    const button = document.querySelector(`#result-${tmdbId} .btn-add`);
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+    
+    fetch(`/admin/add_movie/${tmdbId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            button.className = 'btn btn-added';
+            button.innerHTML = '<i class="bi bi-check-circle"></i> Добавлен!';
+            button.disabled = true;
+            
+            // Обновляем статистику
+            const statCards = document.querySelectorAll('.stat-number');
+            if (statCards.length >= 2) {
+                const moviesCount = statCards[1];
+                if (moviesCount) {
+                    const currentCount = parseInt(moviesCount.textContent) || 0;
+                    moviesCount.textContent = currentCount + 1;
+                }
+            }
+            
+            showToast('✅ ' + data.message, 'success');
+        } else {
+            if (data.exists) {
+                button.className = 'btn btn-secondary';
+                button.innerHTML = '<i class="bi bi-check"></i> Уже есть';
+                button.disabled = true;
+                showToast('ℹ️ ' + data.error, 'info');
+            } else {
+                button.className = 'btn btn-danger btn-add';
+                button.innerHTML = '<i class="bi bi-x-circle"></i> Ошибка';
+                button.disabled = false;
+                showToast('❌ ' + data.error, 'error');
+                
+                setTimeout(() => {
+                    button.className = 'btn btn-primary btn-add';
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 3000);
+            }
+        }
+    })
+    .catch(error => {
+        button.className = 'btn btn-danger btn-add';
+        button.innerHTML = '<i class="bi bi-x-circle"></i> Ошибка';
+        button.disabled = false;
+        showToast('❌ Ошибка: ' + error, 'error');
+        
+        setTimeout(() => {
+            button.className = 'btn btn-primary btn-add';
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 3000);
+    });
+}
+
+// --- Удаление пользователя ---
 function deleteUser(userId) {
     actionToConfirm = 'deleteUser';
     targetId = userId;
@@ -237,11 +562,17 @@ function deleteUser(userId) {
     modal.show();
 }
 
+// --- Стирание предпочтений пользователя ---
 function deleteRecommendations(userId) {
     actionToConfirm = 'deleteRecommendations';
     targetId = userId;
     document.getElementById('confirmMessage').textContent = 
-        'Вы уверены, что хотите удалить рекомендации пользователя #' + userId + '?';
+        '⚠️ ВНИМАНИЕ! Это действие:\n' +
+        '1. Удалит все предпочтения пользователя (жанры, актёры, режиссёры)\n' +
+        '2. Удалит все оценки фильмов\n' +
+        '3. Удалит все рекомендации\n' +
+        'Пользователь должен будет пройти все этапы заново.\n\n' +
+        'Вы уверены, что хотите стереть все данные пользователя #' + userId + '?';
     const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
     modal.show();
 }
@@ -257,13 +588,11 @@ document.getElementById('confirmButton').addEventListener('click', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                showToast('✅ Пользователь удалён', 'success');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert('Ошибка при удалении пользователя');
+                showToast('❌ Ошибка: ' + data.error, 'error');
             }
-        })
-        .catch(error => {
-            alert('Произошла ошибка: ' + error);
         });
     } else if (actionToConfirm === 'deleteRecommendations') {
         fetch('/admin/delete_recommendations/' + targetId, {
@@ -275,15 +604,41 @@ document.getElementById('confirmButton').addEventListener('click', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                showToast('✅ ' + data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert('Ошибка при удалении рекомендаций');
+                showToast('❌ Ошибка: ' + data.error, 'error');
             }
-        })
-        .catch(error => {
-            alert('Произошла ошибка: ' + error);
         });
     }
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+    if (modal) modal.hide();
 });
+
+// --- Уведомления ---
+function showToast(message, type = 'info') {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+        document.body.appendChild(container);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-custom ${type}`;
+    toast.innerHTML = `
+        <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+        ${message}
+    `;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 4000);
+}
 </script>
 {% endblock %}

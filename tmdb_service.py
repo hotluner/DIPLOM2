@@ -22,7 +22,7 @@ class TMDBCache:
         return value
 
 class TMDBService:
-    """Сервис для работы с TMDB API"""
+    
     
     def __init__(self):
         # Инициализация с API-ключом
